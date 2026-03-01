@@ -4,6 +4,10 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const cron = require('node-cron');
 require('dotenv').config();
+const dns = require('dns');
+
+// Force IPv4 for cloud network reliability
+dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
