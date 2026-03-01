@@ -39,7 +39,7 @@ async function initDB() {
   try {
     await pool.query('SELECT NOW()'); 
     
-    // Schema Hardening: Using standard PostgreSQL naming (all lowercase)
+    console.log('🔄 Verifying production schema...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS prices (
         id SERIAL PRIMARY KEY,
@@ -56,6 +56,14 @@ async function initDB() {
       )
     `);
 
+    // Ensure snake_case columns exist (Migration fallback)
+    const columns = ['variety', 'arrival_date', 'min_price', 'max_price', 'modal_price'];
+    for (const col of columns) {
+      try {
+        await pool.query(`ALTER TABLE prices ADD COLUMN IF NOT EXISTS ${col} ${col.includes('price') ? 'REAL' : 'TEXT'}`);
+      } catch (e) { /* already exists */ }
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS preferences (
         id SERIAL PRIMARY KEY,
@@ -65,7 +73,7 @@ async function initDB() {
       )
     `);
 
-    console.log('📦 Supabase Cloud Database initialized and verified');
+    console.log('📦 Supabase Cloud Database synced and verified');
     backfillHistoricalData().catch(err => console.error('Backfill Error:', err));
   } catch (err) {
     console.error('❌ Database Initialization Failed:', err.message);
@@ -239,6 +247,8 @@ app.get('/api/mandi-prices', async (req, res) => {
 app.get('/api/history', async (req, res) => {
   try {
     const { market, commodity } = req.query;
+    if (!market || !commodity) return res.status(400).json({ error: "Missing params" });
+    
     // Normalized snake_case query
     const result = await pool.query(
       'SELECT arrival_date as "arrivalDate", modal_price as "modalPrice" FROM prices WHERE market = $1 AND commodity = $2 ORDER BY arrival_date ASC LIMIT 30',
@@ -247,7 +257,7 @@ app.get('/api/history', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('History API error:', err.message);
-    res.status(500).json({ error: "Failed to load historical trends" });
+    res.status(500).json({ error: `Database Error: ${err.message}` });
   }
 });
 
