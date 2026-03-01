@@ -45,7 +45,14 @@ function App() {
   const [selectedUnit, setSelectedUnit] = useState<'quintal' | 'kg' | 'maund'>('quintal');
 
   const t = translations[lang];
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  
+  // Enterprise Fail-safe API URL handling
+  const rawApiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const apiBase = rawApiBase.endsWith('/') ? rawApiBase.slice(0, -1) : rawApiBase;
+
+  useEffect(() => {
+    console.log(`🚀 [Enterprise Audit] Connecting to Backend at: ${apiBase}`);
+  }, [apiBase]);
 
   const formatPrice = (basePrice: number) => {
     if (!basePrice || basePrice === 0) return '---';
