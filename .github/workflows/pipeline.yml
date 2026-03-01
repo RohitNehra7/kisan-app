@@ -1,0 +1,46 @@
+name: Kisan-App Enterprise Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Backend Dependencies
+        run: cd server && npm install
+      - name: Run Integrity Tests
+        run: cd server && npm test
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Frontend Dependencies
+        run: cd client && npm install
+      - name: Verify Production Build
+        run: cd client && npm run build
+
+  deploy-backend:
+    needs: [test-backend, build-frontend]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deployment
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+  # Note: Vercel auto-deploys on every push to GitHub by default.
+  # This pipeline ensures Vercel only deploys "tested" code because 
+  # we can set Vercel to wait for these GitHub Checks to pass.
