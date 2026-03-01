@@ -12,8 +12,6 @@ dns.setDefaultResultOrder('ipv4first');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Resolve Supabase ENETUNREACH by using the hostname but optimizing connection
-// Note: We removed the hardcoded IP to ensure enterprise-grade DNS resilience.
 const dbUrl = process.env.DATABASE_URL;
 
 const corsOptions = {
@@ -30,21 +28,18 @@ const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a3
 const pool = new Pool({
   connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
-  // Pool Hardening Settings
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 15000, // Increased to 15s to prevent timeouts
+  connectionTimeoutMillis: 15000,
 });
 
-// Pool Error Handling (Critical for Stability)
-pool.on('error', (err, client) => {
-  console.error('❌ Unexpected error on idle client', err);
-});
+pool.on('error', (err) => console.error('❌ Pool error:', err));
 
 async function initDB() {
   try {
-    await pool.query('SELECT NOW()'); // Health check
+    await pool.query('SELECT NOW()'); 
     
+    // Schema Hardening: Using standard PostgreSQL naming (all lowercase)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS prices (
         id SERIAL PRIMARY KEY,
@@ -53,11 +48,11 @@ async function initDB() {
         market TEXT,
         commodity TEXT,
         variety TEXT,
-        arrivalDate TEXT,
-        minPrice REAL,
-        maxPrice REAL,
-        modalPrice REAL,
-        fetchTimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        arrival_date TEXT,
+        min_price REAL,
+        max_price REAL,
+        modal_price REAL,
+        fetch_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -74,11 +69,10 @@ async function initDB() {
     backfillHistoricalData().catch(err => console.error('Backfill Error:', err));
   } catch (err) {
     console.error('❌ Database Initialization Failed:', err.message);
-    // In an enterprise app, we don't exit; we allow the app to run in "Live Only" mode
   }
 }
 
-// Data Backfill Engine (Optimized for PG)
+// Data Backfill Engine
 async function backfillHistoricalData() {
   const apiKey = process.env.DATA_GOV_API_KEY;
   if (!apiKey || apiKey === 'YOUR_API_KEY_HERE' || !apiKey) return;
@@ -108,10 +102,10 @@ async function backfillHistoricalData() {
             market: getVal(record, 'market') || "N/A",
             commodity: getVal(record, 'commodity') || "N/A",
             variety: getVal(record, 'variety') || "N/A",
-            arrivalDate: getVal(record, 'arrival_date') || getVal(record, 'arrivalDate') || dateStr,
-            minPrice: parseFloat(getVal(record, 'min_price')) || 0,
-            maxPrice: parseFloat(getVal(record, 'max_price')) || 0,
-            modalPrice: parseFloat(getVal(record, 'modal_price')) || 0
+            arrival_date: getVal(record, 'arrival_date') || getVal(record, 'arrivalDate') || dateStr,
+            min_price: parseFloat(getVal(record, 'min_price')) || 0,
+            max_price: parseFloat(getVal(record, 'max_price')) || 0,
+            modal_price: parseFloat(getVal(record, 'modal_price')) || 0
           };
         });
         await saveToDB(cleanedData);
@@ -128,14 +122,14 @@ async function saveToDB(records) {
     await client.query('BEGIN');
     for (const r of records) {
       const exists = await client.query(
-        'SELECT id FROM prices WHERE market = $1 AND commodity = $2 AND arrivalDate = $3',
-        [r.market, r.commodity, r.arrivalDate]
+        'SELECT id FROM prices WHERE market = $1 AND commodity = $2 AND arrival_date = $3',
+        [r.market, r.commodity, r.arrival_date]
       );
       
       if (exists.rowCount === 0) {
         await client.query(
-          'INSERT INTO prices (state, district, market, commodity, variety, arrivalDate, minPrice, maxPrice, modalPrice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [r.state, r.district, r.market, r.commodity, r.variety, r.arrivalDate, r.minPrice, r.maxPrice, r.modalPrice]
+          'INSERT INTO prices (state, district, market, commodity, variety, arrival_date, min_price, max_price, modal_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+          [r.state, r.district, r.market, r.commodity, r.variety, r.arrival_date, r.min_price, r.max_price, r.modal_price]
         );
       }
     }
@@ -150,12 +144,7 @@ async function saveToDB(records) {
 
 app.get('/api/weather', async (req, res) => {
   const { district } = req.query;
-  res.json({
-    temp: 24,
-    condition: "Partly Cloudy",
-    district: district || "Haryana",
-    is_mock: true
-  });
+  res.json({ temp: 24, condition: "Partly Cloudy", district: district || "Haryana", is_mock: true });
 });
 
 app.get('/api/preferences', async (req, res) => {
@@ -222,17 +211,24 @@ app.get('/api/mandi-prices', async (req, res) => {
     });
 
     if (cleanedData.length > 0) {
-      saveToDB(cleanedData).catch(err => console.error('DB Save Error:', err));
+      // Map back to snake_case for DB saving
+      const dbRecords = cleanedData.map(r => ({
+        ...r,
+        arrival_date: r.arrivalDate,
+        min_price: r.minPrice,
+        max_price: r.maxPrice,
+        modal_price: r.modalPrice
+      }));
+      saveToDB(dbRecords).catch(err => console.error('DB Save Error:', err));
     }
 
     res.json({ source: 'api', count: cleanedData.length, records: cleanedData, updatedAt: new Date().toISOString() });
   } catch (error) {
-    console.log('🔄 API failed, attempting DB fallback...');
     try {
-      let query = 'SELECT * FROM prices WHERE 1=1';
+      let query = 'SELECT state, district, market, commodity, variety, arrival_date as "arrivalDate", min_price as "minPrice", max_price as "maxPrice", modal_price as "modalPrice" FROM prices WHERE 1=1';
       let dbParams = [];
       if (state) { query += ' AND state = $1'; dbParams.push(state); }
-      const result = await pool.query(query + ' ORDER BY "fetchTimestamp" DESC LIMIT 50', dbParams);
+      const result = await pool.query(query + ' ORDER BY fetch_timestamp DESC LIMIT 50', dbParams);
       res.json({ source: 'database_fallback', records: result.rows });
     } catch (dbErr) {
       res.status(500).json({ error: 'Data source unavailable' });
@@ -243,8 +239,9 @@ app.get('/api/mandi-prices', async (req, res) => {
 app.get('/api/history', async (req, res) => {
   try {
     const { market, commodity } = req.query;
+    // Normalized snake_case query
     const result = await pool.query(
-      'SELECT "arrivalDate", "modalPrice" FROM prices WHERE market = $1 AND commodity = $2 ORDER BY "arrivalDate" ASC LIMIT 30',
+      'SELECT arrival_date as "arrivalDate", modal_price as "modalPrice" FROM prices WHERE market = $1 AND commodity = $2 ORDER BY arrival_date ASC LIMIT 30',
       [market, commodity]
     );
     res.json(result.rows);
