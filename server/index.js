@@ -147,11 +147,12 @@ app.get('/api/history', async (req, res) => {
 });
 
 app.get('/api/mandi-prices', async (req, res) => {
-  const { state, commodity } = req.query;
+  const { state, commodity, limit = 500 } = req.query;
+
   const apiKey = process.env.DATA_GOV_API_KEY;
   try {
     const response = await axios.get(DATA_GOV_API_URL, {
-      params: { 'api-key': apiKey, 'format': 'json', 'limit': 100, 'filters[state]': state, 'filters[commodity]': commodity }
+      params: { 'api-key': apiKey, 'format': 'json', 'limit': limit, 'filters[state]': state, 'filters[commodity]': commodity }
     });
     const records = response.data.records || [];
     const cleanedData = records.map(r => ({
