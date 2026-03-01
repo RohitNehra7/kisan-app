@@ -12,6 +12,13 @@ dns.setDefaultResultOrder('ipv4first');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Resolve Supabase ENETUNREACH by building a direct IP connection string if hostname fails
+let dbUrl = process.env.DATABASE_URL;
+if (dbUrl && dbUrl.includes('supabase.co')) {
+  // Replace hostname with verified IPv4 to bypass Render's broken IPv6 DNS
+  dbUrl = dbUrl.replace('db.rhvtwdshkfqgudjpnjwd.supabase.co', '202.83.21.15');
+}
+
 const corsOptions = {
   origin: ['http://localhost:3000', /\.vercel\.app$/, /\.onrender\.com$/],
   optionsSuccessStatus: 200
@@ -22,13 +29,11 @@ app.use(express.json());
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
-// 1. Initialize PostgreSQL Connection Pool (Supabase)
+// 1. Initialize PostgreSQL Connection Pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000, // 10s timeout
-  idleTimeoutMillis: 30000,
-  max: 10 // Max connections
+  connectionTimeoutMillis: 10000
 });
 
 async function initDB() {
@@ -72,7 +77,7 @@ async function initDB() {
 // Data Backfill Engine (Optimized for PG)
 async function backfillHistoricalData() {
   const apiKey = process.env.DATA_GOV_API_KEY;
-  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') return;
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE' || !apiKey) return;
 
   console.log('⏳ [Backfill Engine] Starting 7-day historical sync to Supabase...');
   
@@ -222,12 +227,17 @@ app.get('/api/mandi-prices', async (req, res) => {
     res.json({ source: 'api', count: cleanedData.length, records: cleanedData, updatedAt: new Date().toISOString() });
   } catch (error) {
     // PG Fallback
-    let query = 'SELECT * FROM prices WHERE 1=1';
-    let dbParams = [];
-    if (state) { query += ' AND state = $1'; dbParams.push(state); }
-    
-    const result = await pool.query(query + ' ORDER BY fetchTimestamp DESC LIMIT 50', dbParams);
-    res.json({ source: 'database_fallback', records: result.rows });
+    console.log('🔄 API failed, attempting DB fallback...');
+    try {
+      let query = 'SELECT * FROM prices WHERE 1=1';
+      let dbParams = [];
+      if (state) { query += ' AND state = $1'; dbParams.push(state); }
+      
+      const result = await pool.query(query + ' ORDER BY "fetchTimestamp" DESC LIMIT 50', dbParams);
+      res.json({ source: 'database_fallback', records: result.rows });
+    } catch (dbErr) {
+      res.status(500).json({ error: 'Data source unavailable' });
+    }
   }
 });
 
