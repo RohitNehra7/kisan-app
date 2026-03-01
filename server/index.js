@@ -21,7 +21,10 @@ const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a3
 // 1. Initialize PostgreSQL Connection Pool (Supabase)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Required for Supabase
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000, // 10s timeout
+  idleTimeoutMillis: 30000,
+  max: 10 // Max connections
 });
 
 async function initDB() {
