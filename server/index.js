@@ -12,12 +12,9 @@ dns.setDefaultResultOrder('ipv4first');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Resolve Supabase ENETUNREACH by building a direct IP connection string if hostname fails
-let dbUrl = process.env.DATABASE_URL;
-if (dbUrl && dbUrl.includes('supabase.co')) {
-  // Replace hostname with verified IPv4 to bypass Render's broken IPv6 DNS
-  dbUrl = dbUrl.replace('db.rhvtwdshkfqgudjpnjwd.supabase.co', '202.83.21.15');
-}
+// Resolve Supabase ENETUNREACH by using the hostname but optimizing connection
+// Note: We removed the hardcoded IP to ensure enterprise-grade DNS resilience.
+const dbUrl = process.env.DATABASE_URL;
 
 const corsOptions = {
   origin: ['http://localhost:3000', /\.vercel\.app$/, /\.onrender\.com$/],
@@ -29,16 +26,25 @@ app.use(express.json());
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
-// 1. Initialize PostgreSQL Connection Pool
+// 1. Initialize PostgreSQL Connection Pool with Enterprise Stabilization
 const pool = new Pool({
   connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000
+  // Pool Hardening Settings
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 15000, // Increased to 15s to prevent timeouts
+});
+
+// Pool Error Handling (Critical for Stability)
+pool.on('error', (err, client) => {
+  console.error('❌ Unexpected error on idle client', err);
 });
 
 async function initDB() {
   try {
-    // Create Prices Table
+    await pool.query('SELECT NOW()'); // Health check
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS prices (
         id SERIAL PRIMARY KEY,
@@ -55,7 +61,6 @@ async function initDB() {
       )
     `);
 
-    // Create Preferences Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS preferences (
         id SERIAL PRIMARY KEY,
@@ -65,12 +70,11 @@ async function initDB() {
       )
     `);
 
-    console.log('📦 Supabase Cloud Database initialized');
-    
-    // Trigger backfill in background
+    console.log('📦 Supabase Cloud Database initialized and verified');
     backfillHistoricalData().catch(err => console.error('Backfill Error:', err));
   } catch (err) {
     console.error('❌ Database Initialization Failed:', err.message);
+    // In an enterprise app, we don't exit; we allow the app to run in "Live Only" mode
   }
 }
 
@@ -79,7 +83,7 @@ async function backfillHistoricalData() {
   const apiKey = process.env.DATA_GOV_API_KEY;
   if (!apiKey || apiKey === 'YOUR_API_KEY_HERE' || !apiKey) return;
 
-  console.log('⏳ [Backfill Engine] Starting 7-day historical sync to Supabase...');
+  console.log('⏳ [Backfill Engine] Starting 7-day historical sync...');
   
   for (let i = 1; i <= 7; i++) {
     const d = new Date();
@@ -92,25 +96,24 @@ async function backfillHistoricalData() {
       });
       
       const records = response.data.records || [];
-      const cleanedData = records.map(record => {
-        const getVal = (obj, targetKey) => {
-          const key = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
-          return key ? obj[key] : null;
-        };
-        return {
-          state: getVal(record, 'state') || "N/A",
-          district: getVal(record, 'district') || "N/A",
-          market: getVal(record, 'market') || "N/A",
-          commodity: getVal(record, 'commodity') || "N/A",
-          variety: getVal(record, 'variety') || "N/A",
-          arrivalDate: getVal(record, 'arrival_date') || getVal(record, 'arrivalDate') || dateStr,
-          minPrice: parseFloat(getVal(record, 'min_price')) || 0,
-          maxPrice: parseFloat(getVal(record, 'max_price')) || 0,
-          modalPrice: parseFloat(getVal(record, 'modal_price')) || 0
-        };
-      });
-
-      if (cleanedData.length > 0) {
+      if (records.length > 0) {
+        const cleanedData = records.map(record => {
+          const getVal = (obj, targetKey) => {
+            const key = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
+            return key ? obj[key] : null;
+          };
+          return {
+            state: getVal(record, 'state') || "N/A",
+            district: getVal(record, 'district') || "N/A",
+            market: getVal(record, 'market') || "N/A",
+            commodity: getVal(record, 'commodity') || "N/A",
+            variety: getVal(record, 'variety') || "N/A",
+            arrivalDate: getVal(record, 'arrival_date') || getVal(record, 'arrivalDate') || dateStr,
+            minPrice: parseFloat(getVal(record, 'min_price')) || 0,
+            maxPrice: parseFloat(getVal(record, 'max_price')) || 0,
+            modalPrice: parseFloat(getVal(record, 'modal_price')) || 0
+          };
+        });
         await saveToDB(cleanedData);
       }
     } catch (err) {
@@ -119,21 +122,21 @@ async function backfillHistoricalData() {
   }
 }
 
-// Helper to save prices to DB (PG Syntax)
 async function saveToDB(records) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     for (const r of records) {
-      const checkQuery = 'SELECT id FROM prices WHERE market = $1 AND commodity = $2 AND arrivalDate = $3';
-      const exists = await client.query(checkQuery, [r.market, r.commodity, r.arrivalDate]);
+      const exists = await client.query(
+        'SELECT id FROM prices WHERE market = $1 AND commodity = $2 AND arrivalDate = $3',
+        [r.market, r.commodity, r.arrivalDate]
+      );
       
       if (exists.rowCount === 0) {
-        const insertQuery = `
-          INSERT INTO prices (state, district, market, commodity, variety, arrivalDate, minPrice, maxPrice, modalPrice) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `;
-        await client.query(insertQuery, [r.state, r.district, r.market, r.commodity, r.variety, r.arrivalDate, r.minPrice, r.maxPrice, r.modalPrice]);
+        await client.query(
+          'INSERT INTO prices (state, district, market, commodity, variety, arrivalDate, minPrice, maxPrice, modalPrice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+          [r.state, r.district, r.market, r.commodity, r.variety, r.arrivalDate, r.minPrice, r.maxPrice, r.modalPrice]
+        );
       }
     }
     await client.query('COMMIT');
@@ -145,7 +148,6 @@ async function saveToDB(records) {
   }
 }
 
-// Weather Service
 app.get('/api/weather', async (req, res) => {
   const { district } = req.query;
   res.json({
@@ -156,7 +158,6 @@ app.get('/api/weather', async (req, res) => {
   });
 });
 
-// Preferences Endpoints (PG Syntax)
 app.get('/api/preferences', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM preferences');
@@ -200,8 +201,8 @@ app.get('/api/mandi-prices', async (req, res) => {
     if (commodity) params['filters[commodity]'] = commodity;
 
     const response = await axios.get(DATA_GOV_API_URL, { params });
-    
     const records = response.data.records || [];
+    
     const cleanedData = records.map(record => {
       const getVal = (obj, targetKey) => {
         const key = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
@@ -226,13 +227,11 @@ app.get('/api/mandi-prices', async (req, res) => {
 
     res.json({ source: 'api', count: cleanedData.length, records: cleanedData, updatedAt: new Date().toISOString() });
   } catch (error) {
-    // PG Fallback
     console.log('🔄 API failed, attempting DB fallback...');
     try {
       let query = 'SELECT * FROM prices WHERE 1=1';
       let dbParams = [];
       if (state) { query += ' AND state = $1'; dbParams.push(state); }
-      
       const result = await pool.query(query + ' ORDER BY "fetchTimestamp" DESC LIMIT 50', dbParams);
       res.json({ source: 'database_fallback', records: result.rows });
     } catch (dbErr) {
@@ -250,7 +249,8 @@ app.get('/api/history', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('History API error:', err.message);
+    res.status(500).json({ error: "Failed to load historical trends" });
   }
 });
 

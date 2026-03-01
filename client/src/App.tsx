@@ -40,6 +40,7 @@ function App() {
   const [weather, setWeather] = useState<Weather | null>(null);
   const [selectedHistory, setSelectedHistory] = useState<any[]>([]);
   const [historyModal, setHistoryModal] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const [selectedUnit, setSelectedUnit] = useState<'quintal' | 'kg' | 'maund'>('quintal');
@@ -122,15 +123,17 @@ function App() {
   }, [fetchPrices, fetchWeather, fetchPreferences]);
 
   const fetchHistory = async (market: string, commodity: string) => {
+    setHistoryLoading(true);
+    setHistoryModal(`${commodity} - ${market}`);
     try {
       const response = await fetch(`${apiBase}/api/history?market=${market}&commodity=${commodity}`);
       const data = await response.json();
       setSelectedHistory(Array.isArray(data) ? data : []);
-      setHistoryModal(`${commodity} - ${market}`);
     } catch (err) {
       console.error('History error', err);
       setSelectedHistory([]);
-      setHistoryModal(`${commodity} - ${market} (Data Unavailable)`);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -349,7 +352,12 @@ function App() {
             </div>
             
             <div className="modal-body">
-              {selectedHistory && selectedHistory.length > 0 ? (
+              {historyLoading ? (
+                <div className="chart-skeleton">
+                  <div className="skel-line"></div>
+                  <p>Analyzing historical trends...</p>
+                </div>
+              ) : selectedHistory && selectedHistory.length > 0 ? (
                 <div className="chart-wrapper">
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={selectedHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
