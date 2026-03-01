@@ -13,6 +13,11 @@ COPY server/ ./server/
 # Move into server directory
 WORKDIR /usr/src/app/server
 
+# Build-time environment placeholders (Render will override these at runtime)
+ENV PORT=5000
+ENV NODE_ENV=production
+
 EXPOSE 5000
 
+# Use array form for CMD to properly handle signals and env vars
 CMD ["node", "index.js"]
