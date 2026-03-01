@@ -6,26 +6,13 @@ const cron = require('node-cron');
 require('dotenv').config();
 const dns = require('dns');
 
-// Force IPv4 at the OS level for this process
+// Standard Node behavior - No more manual IP bypass hacks
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// PRE-FLIGHT DEBUG: Log environment status (Masked for security)
-console.log(`🛠️ [System Audit] DB_URL_SET: ${!!process.env.DATABASE_URL}`);
-console.log(`🛠️ [System Audit] API_KEY_SET: ${!!process.env.DATA_GOV_API_KEY}`);
-
-// DEFINITIVE FIX: Force IPv4 by replacing ANY Supabase hostname with Direct IP
-let dbUrl = process.env.DATABASE_URL || '';
-if (dbUrl.includes('supabase')) {
-  console.log('🚀 [Network] Routing traffic through verified IPv4 Direct Path...');
-  // This regex finds the host part of the connection string and swaps it for the IP
-  // Works for both db.xxx.supabase.co and aws-0-xxx.pooler.supabase.com
-  dbUrl = dbUrl.replace(/@([^:/]+)/, '@202.83.21.15');
-}
 
 const corsOptions = {
   origin: ['http://localhost:3000', /\.vercel\.app$/, /\.onrender\.com$/],
@@ -37,22 +24,23 @@ app.use(express.json());
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
+// Initialize Pool with High-Availability Cloud Settings
 const pool = new Pool({
-  connectionString: dbUrl,
-  ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Required for Supabase cloud
+  },
   max: 10,
-  connectionTimeoutMillis: 30000, // Increased to 30s
+  connectionTimeoutMillis: 30000, // 30s for cloud handshake
   idleTimeoutMillis: 10000
 });
 
-pool.on('error', (err) => {
-  console.error('❌ DATABASE POOL ERROR:', err.message);
-});
+pool.on('error', (err) => console.error('❌ DB Pool error:', err.message));
 
 async function initDB() {
   try {
     const client = await pool.connect();
-    console.log('✅ [Success] Database Handshake Complete (IPv4 Tunnel Active)');
+    console.log('✅ Supabase Cloud Connection Successful');
     
     await client.query(`
       CREATE TABLE IF NOT EXISTS prices (
@@ -80,10 +68,10 @@ async function initDB() {
     `);
 
     client.release();
-    console.log('📦 Supabase Cloud Schema Verified');
+    console.log('📦 Database Schema Verified');
     backfillHistoricalData().catch(err => { });
   } catch (err) {
-    console.error('🔥 [Critical] Cloud Connection Failed:', err.message);
+    console.error('🔥 Cloud Connection Failed:', err.message);
   }
 }
 
@@ -185,7 +173,6 @@ app.get('/api/mandi-prices', async (req, res) => {
 
     const response = await axios.get(DATA_GOV_API_URL, { params });
     const records = response.data.records || [];
-    
     const cleanedData = records.map(record => {
       const getVal = (obj, targetKey) => {
         const key = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
@@ -235,5 +222,5 @@ app.get('/api/history', async (req, res) => {
 });
 
 initDB().then(() => {
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 Enterprise Server running on port ${PORT}`));
 });
