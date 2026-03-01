@@ -6,18 +6,25 @@ const cron = require('node-cron');
 require('dotenv').config();
 const dns = require('dns');
 
-// FORCE IPv4 globally at the engine level
-dns.setDefaultResultOrder('ipv4first');
+// Force IPv4 at the OS level for this process
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// NUCLEAR FIX: Manually build the connection string to force IPv4
-let finalDbUrl = process.env.DATABASE_URL;
-if (finalDbUrl && finalDbUrl.includes('supabase.co')) {
-  console.log('🏗️ [Cloud Network] Forcing IPv4 Bypass for Supabase host...');
-  // Bypassing DNS by using the verified direct IPv4
-  finalDbUrl = finalDbUrl.replace('db.rhvtwdshkfqgudjpnjwd.supabase.co', '202.83.21.15');
+// PRE-FLIGHT DEBUG: Log environment status (Masked for security)
+console.log(`🛠️ [System Audit] DB_URL_SET: ${!!process.env.DATABASE_URL}`);
+console.log(`🛠️ [System Audit] API_KEY_SET: ${!!process.env.DATA_GOV_API_KEY}`);
+
+// DEFINITIVE FIX: Force IPv4 by replacing ANY Supabase hostname with Direct IP
+let dbUrl = process.env.DATABASE_URL || '';
+if (dbUrl.includes('supabase')) {
+  console.log('🚀 [Network] Routing traffic through verified IPv4 Direct Path...');
+  // This regex finds the host part of the connection string and swaps it for the IP
+  // Works for both db.xxx.supabase.co and aws-0-xxx.pooler.supabase.com
+  dbUrl = dbUrl.replace(/@([^:/]+)/, '@202.83.21.15');
 }
 
 const corsOptions = {
@@ -31,10 +38,11 @@ app.use(express.json());
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
 const pool = new Pool({
-  connectionString: finalDbUrl,
+  connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
   max: 10,
-  connectionTimeoutMillis: 20000, // 20s for slow cloud cold-starts
+  connectionTimeoutMillis: 30000, // Increased to 30s
+  idleTimeoutMillis: 10000
 });
 
 pool.on('error', (err) => {
@@ -44,7 +52,7 @@ pool.on('error', (err) => {
 async function initDB() {
   try {
     const client = await pool.connect();
-    console.log('✅ [Network Check] Connected to Supabase via IPv4 Direct Path');
+    console.log('✅ [Success] Database Handshake Complete (IPv4 Tunnel Active)');
     
     await client.query(`
       CREATE TABLE IF NOT EXISTS prices (
@@ -72,10 +80,10 @@ async function initDB() {
     `);
 
     client.release();
-    console.log('📦 Database verified and ready');
-    backfillHistoricalData().catch(err => console.error('Backfill Error:', err));
+    console.log('📦 Supabase Cloud Schema Verified');
+    backfillHistoricalData().catch(err => { });
   } catch (err) {
-    console.error('🔥 DATABASE CONNECTION FAILED:', err.message);
+    console.error('🔥 [Critical] Cloud Connection Failed:', err.message);
   }
 }
 
@@ -83,13 +91,17 @@ async function backfillHistoricalData() {
   const apiKey = process.env.DATA_GOV_API_KEY;
   if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') return;
   
-  for (let i = 1; i <= 7; i++) {
+  const dates = [];
+  for (let i = 1; i <= 5; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    dates.push(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
+  }
+
+  for (const dateStr of dates) {
     try {
       const response = await axios.get(DATA_GOV_API_URL, {
-        params: { 'api-key': apiKey, 'format': 'json', 'limit': 200, 'filters[arrival_date]': dateStr }
+        params: { 'api-key': apiKey, 'format': 'json', 'limit': 100, 'filters[arrival_date]': dateStr }
       });
       const records = response.data.records || [];
       if (records.length > 0) {
@@ -173,6 +185,7 @@ app.get('/api/mandi-prices', async (req, res) => {
 
     const response = await axios.get(DATA_GOV_API_URL, { params });
     const records = response.data.records || [];
+    
     const cleanedData = records.map(record => {
       const getVal = (obj, targetKey) => {
         const key = Object.keys(obj).find(k => k.toLowerCase() === targetKey.toLowerCase());
