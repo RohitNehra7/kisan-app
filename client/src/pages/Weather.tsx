@@ -11,10 +11,11 @@ interface ForecastItem {
   precipProb: number;
   sunrise: string;
   sunset: string;
+  et0?: number; // Evapotranspiration
 }
 
 interface WeatherData {
-  temp: number;
+  currentTemp: number;
   feelsLike: number;
   todayHigh: number;
   todayLow: number;
@@ -22,12 +23,12 @@ interface WeatherData {
   humidity: number;
   windSpeed: number;
   uvIndex: number;
-  visibility: number;
+  visibility: number | null;
   isDay: boolean;
   sunrise: string;
   sunset: string;
   district: string;
-  forecast?: ForecastItem[];
+  forecast: ForecastItem[];
   is_mock: boolean;
 }
 
@@ -112,7 +113,7 @@ const Weather: React.FC = () => {
             <div className="mt-12 mb-6 relative z-10">
               <div className="flex items-baseline">
                 <span className="text-sm font-black uppercase tracking-widest opacity-70 mr-2">{isHindi ? 'अभी:' : 'Now:'}</span>
-                <h3 className="text-8xl font-black leading-none tracking-tighter">{weather.temp}</h3>
+                <h3 className="text-8xl font-black leading-none tracking-tighter">{weather.currentTemp}</h3>
                 <span className="text-4xl font-bold mt-2">°C</span>
               </div>
               <div className="flex items-center gap-2 mt-2">
@@ -137,36 +138,46 @@ const Weather: React.FC = () => {
                 <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'नमी' : 'Humidity'}</p>
                 <p className="font-black text-xl">{weather.humidity}%</p>
               </div>
-              <div className="text-center">
+              <div className="text-center border-l border-white/10">
                 <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'हवा' : 'Wind'}</p>
                 <p className="font-black text-xl">{weather.windSpeed}<span className="text-xs ml-0.5">km/h</span></p>
               </div>
-              <div className="text-center">
-                <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'UV इंडेक्स' : 'UV Index'}</p>
-                <p className="font-black text-xl">{weather.uvIndex} <span className="text-[10px] opacity-60">({getUVStatus(weather.uvIndex)})</span></p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'दृश्यता' : 'Visibility'}</p>
-                <p className="font-black text-xl">{weather.visibility}<span className="text-xs ml-0.5">km</span></p>
-              </div>
+              {weather.uvIndex > 0 && (
+                <div className="text-center border-l border-white/10">
+                  <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'UV इंडेक्स' : 'UV Index'}</p>
+                  <p className="font-black text-xl">{weather.uvIndex} <span className="text-[10px] opacity-60">({getUVStatus(weather.uvIndex)})</span></p>
+                </div>
+              )}
+              {weather.visibility && (
+                <div className="text-center border-l border-white/10">
+                  <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'दृश्यता' : 'Visibility'}</p>
+                  <p className="font-black text-xl">{weather.visibility}<span className="text-xs ml-0.5">km</span></p>
+                </div>
+              )}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-white/10 flex justify-between relative z-10">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🌅</span>
-                <div>
-                  <p className="text-[8px] font-black uppercase opacity-50 tracking-widest">{isHindi ? 'सूर्योदय' : 'Sunrise'}</p>
-                  <p className="font-bold text-sm">{weather.sunrise}</p>
-                </div>
+            {(weather.sunrise || weather.sunset) && (
+              <div className="mt-8 pt-6 border-t border-white/10 flex justify-between relative z-10">
+                {weather.sunrise && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🌅</span>
+                    <div>
+                      <p className="text-[8px] font-black uppercase opacity-50 tracking-widest">{isHindi ? 'सूर्योदय' : 'Sunrise'}</p>
+                      <p className="font-bold text-sm">{weather.sunrise}</p>
+                    </div>
+                  </div>
+                )}
+                {weather.sunset && (
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-[8px] font-black uppercase opacity-50 tracking-widest">{isHindi ? 'सूर्यास्त' : 'Sunset'}</p>
+                      <p className="font-bold text-sm">{weather.sunset}</p>
+                    </div>
+                    <span className="text-xl">🌇</span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-[8px] font-black uppercase opacity-50 tracking-widest">{isHindi ? 'सूर्यास्त' : 'Sunset'}</p>
-                  <p className="font-bold text-sm">{weather.sunset}</p>
-                </div>
-                <span className="text-xl">🌇</span>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-xl">
@@ -176,8 +187,9 @@ const Weather: React.FC = () => {
                 <div key={idx} className="flex justify-between items-center group cursor-pointer border-b border-slate-50 pb-4 last:border-0 last:pb-0">
                   <div className="flex flex-col w-32">
                     <p className="font-black text-slate-900 uppercase text-[10px] tracking-tighter">{formatDay(day.date)}</p>
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-bold text-blue-500">💧 {day.precipProb}%</span>
+                      {day.et0 && <span className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">🔥 ET0: {day.et0}mm</span>}
                     </div>
                   </div>
                   <div className="flex flex-col items-center">

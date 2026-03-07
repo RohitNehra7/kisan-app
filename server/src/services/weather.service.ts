@@ -9,6 +9,8 @@ interface DailyForecast {
   precipProb: number;
   sunrise: string;
   sunset: string;
+  et0?: number; // Evapotranspiration
+  soilTemp?: number;
 }
 
 interface WeatherData {
@@ -20,7 +22,7 @@ interface WeatherData {
   humidity: number;
   windSpeed: number;
   uvIndex: number;
-  visibility: number;
+  visibility: number | null;
   isDay: boolean;
   sunrise: string;
   sunset: string;
@@ -70,16 +72,22 @@ export class WeatherService {
   static async getFullWeather(district: string): Promise<WeatherData | null> {
     try {
       const coords = DISTRICT_COORDS[district] || { lat: 29.6857, lon: 76.9907 };
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=14`;
+      // Adding et0_fao_evapotranspiration and soil_temperature_6cm for Agriculture Intelligence
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset,et0_fao_evapotranspiration&timezone=auto&forecast_days=14`;
       
       const response = await axios.get(url);
       const data = response.data;
+
+      if (!data || !data.current || !data.daily) return null;
 
       const current = data.current;
       const daily = data.daily;
 
       const formatTime = (iso: string) => {
-        return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
       };
 
       const forecast: DailyForecast[] = daily.time.map((date: string, index: number) => ({
@@ -90,7 +98,8 @@ export class WeatherService {
         uvIndex: daily.uv_index_max[index],
         precipProb: daily.precipitation_probability_max[index],
         sunrise: formatTime(daily.sunrise[index]),
-        sunset: formatTime(daily.sunset[index])
+        sunset: formatTime(daily.sunset[index]),
+        et0: daily.et0_fao_evapotranspiration ? daily.et0_fao_evapotranspiration[index] : null
       }));
 
       return {
@@ -102,7 +111,7 @@ export class WeatherService {
         humidity: current.relative_humidity_2m,
         windSpeed: current.wind_speed_10m,
         uvIndex: daily.uv_index_max[0],
-        visibility: Math.round(current.visibility / 1000), // convert to km
+        visibility: current.visibility ? Math.round(current.visibility / 1000) : null, 
         isDay: current.is_day === 1,
         sunrise: formatTime(daily.sunrise[0]),
         sunset: formatTime(daily.sunset[0]),
