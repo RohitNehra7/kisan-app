@@ -18,7 +18,7 @@ const PriceCard: React.FC<PriceCardProps> = ({
   onToggleFavorite,
   onViewTrends 
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const convertPrice = (price: number) => {
     if (unit === 'maund') return Math.round(price * 0.4);

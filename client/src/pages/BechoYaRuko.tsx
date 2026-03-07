@@ -14,7 +14,7 @@ const pageVariants = {
 };
 
 const BechoYaRuko: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   
   const [formData, setFormData] = useState<SellHoldRequest>({
     crop: 'Wheat',
@@ -28,7 +28,7 @@ const BechoYaRuko: React.FC = () => {
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<SellHoldRecommendation | null>(null);
   const [availableCrops, setAvailableCrops] = useState<string[]>([]);
-  const [availableDistricts, setAvailableDistricts] = useState<string[]>(HARYANA_DISTRICTS);
+  const [availableDistricts] = useState<string[]>(HARYANA_DISTRICTS);
 
   useEffect(() => {
     const loadMetadata = async () => {

@@ -14,7 +14,7 @@ import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
-import type { UnitType, MandiPrice } from '../types/mandi.types';
+import type { UnitType } from '../types/mandi.types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -47,7 +47,7 @@ const MandiPrices: React.FC = () => {
    * Fetch all records for the state once. All subsequent dropdown populations
    * are derived locally from this data to ensure 100% consistency.
    */
-  const { data: prices, isLoading, error, dataUpdatedAt } = useMandiPrices({
+  const { data: prices, isLoading, dataUpdatedAt } = useMandiPrices({
     state,
     limit: 10000, // Full state coverage in one hop
   });
