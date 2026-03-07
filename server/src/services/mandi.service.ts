@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { supabase } from '../config/supabase';
 import { GeoService } from './geo.service';
-import { ArbitrageResult, MandiRecord } from '../types/db.types';
+import { ArbitrageResult, MandiRecord } from '../types';
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
@@ -136,7 +136,9 @@ export class MandiService {
         };
         if (state) params['filters[state]'] = state;
         if (comm) params['filters[commodity]'] = comm;
-        if (market) params['filters[market]'] = market;
+        if (market) {
+          params['filters[market]'] = market;
+        }
         if (dateStr) params['filters[arrival_date]'] = dateStr;
         
         let response = await axios.get(DATA_GOV_API_URL, { params });

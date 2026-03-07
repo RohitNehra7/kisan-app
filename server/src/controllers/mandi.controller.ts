@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { MandiService } from '../services/mandi.service';
+import { MandiRecord, ArbitrageResult } from '../types';
 
 export class MandiController {
   static async getPrices(req: Request, res: Response) {

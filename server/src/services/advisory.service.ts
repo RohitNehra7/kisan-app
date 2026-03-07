@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MandiService } from './mandi.service';
 import { WeatherService } from './weather.service';
-import { SellHoldResponse } from '../types/db.types';
+import { SellHoldResponse } from '../types';
 import { MSP_2025 } from '../config/haryana.constants';
 import dotenv from 'dotenv';
 

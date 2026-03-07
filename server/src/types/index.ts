@@ -41,3 +41,26 @@ export interface SellHoldResponse {
   hindi_reason: string;
   risk_note: string;
 }
+
+export interface ForumPost {
+  id?: string;
+  author: string;
+  district: string;
+  crop: string;
+  price?: number;
+  message: string;
+  likes?: number;
+  created_at?: string;
+}
+
+export interface ArbitrageResult {
+  mandi: string;
+  distance: number;
+  gross_price: number;
+  transport_cost: number;
+  net_earnings: number;
+  market_price: number;
+  is_best: boolean;
+}
+
+

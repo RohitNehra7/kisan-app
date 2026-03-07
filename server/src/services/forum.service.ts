@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { ForumPost } from '../types/db.types';
+import { ForumPost } from '../types';
 
 export class ForumService {
   /**
