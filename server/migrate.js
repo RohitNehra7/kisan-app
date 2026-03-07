@@ -99,6 +99,20 @@ async function migrate() {
     );
   `);
 
+  // 6. Farmer Forum
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS forum_posts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      author TEXT NOT NULL,
+      district TEXT NOT NULL,
+      crop TEXT NOT NULL,
+      price NUMERIC(10,2),
+      message TEXT NOT NULL,
+      likes INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   console.log("Migration complete");
   await client.end();
 }

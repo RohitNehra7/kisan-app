@@ -62,6 +62,15 @@ const FarmerForum: React.FC = () => {
     }
   };
 
+  const handleLike = async (postId: string) => {
+    try {
+      await apiFetch(`/api/forum/posts/${postId}/like`, { method: 'POST' });
+      setPosts(posts.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p));
+    } catch (err) {
+      console.error('Failed to like post');
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -144,7 +153,10 @@ const FarmerForum: React.FC = () => {
             </div>
             <p className="text-slate-600 font-medium leading-relaxed mb-6 text-lg">"{post.message}"</p>
             <div className="flex items-center gap-6 pt-6 border-t border-slate-50">
-              <button className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all active:scale-90">
+              <button 
+                onClick={() => handleLike(post.id)}
+                className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all active:scale-90"
+              >
                 <span className="text-2xl">❤️</span>
                 <span className="text-xs font-black">{post.likes}</span>
               </button>

@@ -10,6 +10,7 @@ import {
 import { useMandiPrices, useMandiHistory } from '../hooks/useMandiPrices';
 import { useDebouncedValue } from '../hooks/useDebouncedSearch';
 import { fetchStates } from '../services/mandi.service';
+import { getEnglishCommodity } from '../constants/synonyms';
 import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
@@ -116,11 +117,14 @@ const MandiPrices: React.FC = () => {
     if (selectedMandi !== 'all') filtered = filtered.filter(p => p.market === selectedMandi);
     if (selectedCrop !== 'all') filtered = filtered.filter(p => p.commodity === selectedCrop);
 
-    // Search overrides
+    // Search refines further
     if (debouncedSearch.length > 0) {
       const term = debouncedSearch.toLowerCase();
+      const englishTerm = getEnglishCommodity(term).toLowerCase();
+
       filtered = filtered.filter(p => 
         p.commodity.toLowerCase().includes(term) ||
+        p.commodity.toLowerCase().includes(englishTerm) ||
         p.market.toLowerCase().includes(term)
       );
     } 

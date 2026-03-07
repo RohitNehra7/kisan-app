@@ -58,4 +58,22 @@ export class MandiController {
       res.status(500).json({ success: false, error: e.message });
     }
   }
+
+  static async calculateArbitrage(req: Request, res: Response) {
+    try {
+      const { crop, quantity, district, transport_rate } = req.body;
+      if (!crop || !district) return res.status(400).json({ error: 'Crop and District are required' });
+      
+      const data = await MandiService.calculateArbitrage(
+        crop, 
+        quantity || 50, 
+        district, 
+        transport_rate || 2.5
+      );
+      res.json({ success: true, data });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
 }
+

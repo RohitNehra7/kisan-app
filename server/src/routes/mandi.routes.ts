@@ -8,5 +8,6 @@ router.get('/history', MandiController.getHistory);
 router.get('/metadata/states', MandiController.getStates);
 router.get('/metadata/markets', MandiController.getMarkets);
 router.get('/metadata/commodities', MandiController.getCommodities);
+router.post('/arbitrage', MandiController.calculateArbitrage);
 
 export default router;
