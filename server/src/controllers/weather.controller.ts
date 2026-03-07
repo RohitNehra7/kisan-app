@@ -4,17 +4,20 @@ import { WeatherService } from '../services/weather.service';
 export class WeatherController {
   static async getCurrentWeather(req: Request, res: Response) {
     try {
-      const { district } = req.query;
-      if (!district) return res.status(400).json({ error: 'District is required' });
-
-      const weather = await WeatherService.getFullWeather(district as string);
+      const { district, lat, lon } = req.query;
+      
+      const weather = await WeatherService.getFullWeather({
+        district: district as string,
+        lat: lat ? parseFloat(lat as string) : undefined,
+        lon: lon ? parseFloat(lon as string) : undefined
+      });
       
       if (!weather) {
         return res.json({ 
           success: true, 
           temp: 24, 
           condition: "Clear", 
-          district, 
+          district: district || "Unknown", 
           is_mock: true 
         });
       }
@@ -22,7 +25,6 @@ export class WeatherController {
       res.json({
         success: true,
         ...weather,
-        district,
         is_mock: false
       });
     } catch (e: any) {

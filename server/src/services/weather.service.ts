@@ -26,6 +26,7 @@ interface WeatherData {
   isDay: boolean;
   sunrise: string;
   sunset: string;
+  district: string;
   forecast: DailyForecast[];
 }
 
@@ -69,11 +70,19 @@ export class WeatherService {
   /**
    * Get exhaustive weather data using Open-Meteo API
    */
-  static async getFullWeather(district: string): Promise<WeatherData | null> {
+  static async getFullWeather(params: { district?: string, lat?: number, lon?: number }): Promise<WeatherData | null> {
     try {
-      const coords = DISTRICT_COORDS[district] || { lat: 29.6857, lon: 76.9907 };
-      // Adding et0_fao_evapotranspiration and soil_temperature_6cm for Agriculture Intelligence
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset,et0_fao_evapotranspiration&timezone=auto&forecast_days=14`;
+      let lat = params.lat;
+      let lon = params.lon;
+      let districtName = params.district || "Detected Location";
+
+      if (!lat || !lon) {
+        const coords = DISTRICT_COORDS[params.district || "Karnal"] || DISTRICT_COORDS["Karnal"];
+        lat = coords.lat;
+        lon = coords.lon;
+      }
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset,et0_fao_evapotranspiration&timezone=auto&forecast_days=14`;
       
       const response = await axios.get(url);
       const data = response.data;
@@ -115,6 +124,7 @@ export class WeatherService {
         isDay: current.is_day === 1,
         sunrise: formatTime(daily.sunrise[0]),
         sunset: formatTime(daily.sunset[0]),
+        district: districtName,
         forecast
       };
     } catch (e) {

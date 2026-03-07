@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../services/api';
+import { HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 interface ForecastItem {
   date: string;
@@ -36,34 +37,75 @@ const Weather: React.FC = () => {
   const { i18n, t } = useTranslation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [locating, setLocating] = useState(false);
 
-  useEffect(() => {
-    const fetchWeather = async () => {
-      try {
+  const fetchWeather = useCallback(async (district?: string, lat?: number, lon?: number) => {
+    setLoading(true);
+    try {
+      let url = '/api/weather';
+      if (lat && lon) {
+        url += `?lat=${lat}&lon=${lon}`;
+      } else if (district) {
+        url += `?district=${district}`;
+      } else {
         const phone = localStorage.getItem('farmer_phone');
-        let district = 'Hisar';
-        
+        let d = 'Hisar';
         if (phone) {
           try {
             const profile = await apiFetch(`/api/farmer-profile/${phone}`);
             const profData = await profile.json();
-            if (profData.success) district = profData.data.district;
-          } catch (e) {
-            console.warn('Profile fetch fail, using default district');
-          }
+            if (profData.success) d = profData.data.district;
+          } catch (e) {}
         }
-
-        const response = await apiFetch(`/api/weather?district=${district}`);
-        const data = await response.json();
-        setWeather(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+        url += `?district=${d}`;
+        setSelectedDistrict(d);
       }
-    };
-    fetchWeather();
+
+      const response = await apiFetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setWeather(data);
+        if (data.district && !lat) setSelectedDistrict(data.district);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchWeather();
+  }, [fetchWeather]);
+
+  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const d = e.target.value;
+    setSelectedDistrict(d);
+    fetchWeather(d);
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        fetchWeather(undefined, latitude, longitude);
+        setLocating(false);
+      },
+      (error) => {
+        console.error('Location error:', error);
+        alert('Failed to detect location. Please select district manually.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  };
 
   const isHindi = i18n.language === 'hi';
 
@@ -81,13 +123,35 @@ const Weather: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 pb-32">
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <h1 className="text-4xl font-black text-primary uppercase tracking-tighter italic leading-none">
           {isHindi ? 'किसान मौसम' : 'Kisan Mausam'}
         </h1>
-        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">
+        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2 mb-6">
           {isHindi ? 'सटीक खेती की जानकारी' : 'Precision Weather for Farmers'}
         </p>
+
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <select 
+              value={selectedDistrict}
+              onChange={handleDistrictChange}
+              className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-3.5 font-bold appearance-none shadow-sm focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="" disabled>{isHindi ? 'अपना जिला चुनें' : 'Select District'}</option>
+              {HARYANA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">▼</div>
+          </div>
+          
+          <button 
+            onClick={handleDetectLocation}
+            disabled={locating}
+            className="flex items-center justify-center gap-2 bg-slate-900 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50"
+          >
+            {locating ? '📡 Locating...' : '📍 Use My Current Location'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -123,11 +187,11 @@ const Weather: React.FC = () => {
             </div>
 
             <div className="flex gap-4 mb-10 relative z-10">
-              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex-1">
+              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex-1 text-center">
                 <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-0.5">{isHindi ? 'अधिकतम' : 'High'}</p>
                 <p className="text-xl font-black">{weather.todayHigh}°C</p>
               </div>
-              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex-1">
+              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex-1 text-center">
                 <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-0.5">{isHindi ? 'न्यूनतम' : 'Low'}</p>
                 <p className="text-xl font-black">{weather.todayLow}°C</p>
               </div>
