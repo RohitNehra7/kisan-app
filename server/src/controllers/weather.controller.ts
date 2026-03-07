@@ -20,6 +20,8 @@ export class WeatherController {
       }
 
       const current = forecast[0];
+      if (!current) throw new Error("Forecast data missing");
+
       res.json({
         success: true,
         temp: current.temp,
