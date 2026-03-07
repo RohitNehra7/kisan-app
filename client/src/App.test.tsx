@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders kisan app', () => {
+test('renders app header', () => {
   render(<App />);
-  const headerElement = screen.getByText(/Real-time Market Intelligence/i);
+  const headerElement = screen.getByText(/KisanNiti/i);
   expect(headerElement).toBeInTheDocument();
 });

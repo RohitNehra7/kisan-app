@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "mandi": "मंडी भाव",
+    "advisory": "बेचो / रुको",
+    "weather": "मौसम",
+    "profile": "मेरा खेत"
+  },
+  "common": {
+    "search_placeholder": "फसल खोजें (जैसे गेहूँ, सरसों)...",
+    "search": "खोजें",
+    "select_state": "राज्य चुनें",
+    "favorites": "पसंदीदा",
+    "show_all": "सब दिखाएँ",
+    "loading": "डाटा आ रहा है...",
+    "no_records": "इस के लिए कोई रिकॉर्ड नहीं मिला",
+    "retry": "फिर कोशिश करें",
+    "min": "न्यूनतम",
+    "max": "अधिकतम",
+    "modal_price": "औसत भाव",
+    "view_trends": "ग्राफ देखें",
+    "close": "बंद करें",
+    "quintal": "क्विंटल",
+    "maund": "मन (40kg)",
+    "kg": "किलो",
+    "haryana": "हरियाणा",
+    "punjab": "पंजाब",
+    "rajasthan": "राजस्थान",
+    "up": "उत्तर प्रदेश",
+    "mp": "मध्य प्रदेश",
+    "last_updated": "अंतिम अपडेट"
+  },
+  "advisory": {
+    "title": "बेचो या रुको?",
+    "subtitle": "AI डाटा एनालिसिस • सही समय पर सही फैसला",
+    "form_crop": "मुख्य फसल",
+    "form_quantity": "कुल मात्रा (क्विंटल में)",
+    "form_district": "जिला",
+    "form_storage": "भण्डारण खर्च (₹/दिन/क्विंटल)",
+    "form_urgency": "जरूरत",
+    "urgency_now": "🔴 अभी जरूरी",
+    "urgency_2weeks": "🟡 2 हफ्ते में",
+    "urgency_flexible": "🟢 जब अच्छा दाम मिले",
+    "submit_btn": "सुझाव लो →",
+    "loading_step1": "📊 बाजार भाव चेक हो रहे हैं...",
+    "loading_step2": "🌦️ मौसम अपडेट लिया जा रहा है...",
+    "loading_step3": "🤖 AI सुझाव तैयार कर रहा है...",
+    "decision_sell": "🔴 अभी बेचो",
+    "decision_hold7": "⏳ 7 दिन रुको",
+    "decision_hold14": "⏳ 14 दिन रुको",
+    "decision_partial": "⚡ आधा बेचो",
+    "confidence_high": "पक्का सुझाव ✓",
+    "confidence_medium": "संभावित सुझाव ~",
+    "confidence_low": "अनुमान ?",
+    "expected_range": "अनुमानित भाव",
+    "risk_label": "⚠️ जोखिम",
+    "share_whatsapp": "📱 WhatsApp पर भेजो",
+    "new_advisory": "🔄 नया सुझाव लो"
+  },
+  "favorites": {
+    "empty_title": "कोई पसंदीदा नहीं",
+    "empty_hint": "पसंदीदा में जोड़ने के लिए दिल ❤️ पर टैप करें",
+    "browse_all": "सब फसलें देखें"
+  },
+  "errors": {
+    "api_down": "सर्वर से कनेक्ट नहीं हो पा रहा है"
+  }
+}

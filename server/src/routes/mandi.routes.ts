@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { MandiController } from '../controllers/mandi.controller';
+
+const router = Router();
+
+router.get('/prices', MandiController.getPrices);
+router.get('/history', MandiController.getHistory);
+router.get('/metadata/states', MandiController.getStates);
+router.get('/metadata/markets', MandiController.getMarkets);
+router.get('/metadata/commodities', MandiController.getCommodities);
+
+export default router;
