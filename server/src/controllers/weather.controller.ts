@@ -7,9 +7,9 @@ export class WeatherController {
       const { district } = req.query;
       if (!district) return res.status(400).json({ error: 'District is required' });
 
-      const forecast = await WeatherService.get14DayForecast(district as string);
+      const weather = await WeatherService.getFullWeather(district as string);
       
-      if (forecast.length === 0) {
+      if (!weather) {
         return res.json({ 
           success: true, 
           temp: 24, 
@@ -19,15 +19,16 @@ export class WeatherController {
         });
       }
 
-      const current = forecast[0];
-      if (!current) throw new Error("Forecast data missing");
-
       res.json({
         success: true,
-        temp: current.temp,
-        condition: current.condition,
+        temp: weather.currentTemp,
+        todayHigh: weather.todayHigh,
+        todayLow: weather.todayLow,
+        condition: weather.condition,
+        humidity: weather.humidity,
+        windSpeed: weather.windSpeed,
         district,
-        forecast: forecast.slice(1, 8), // 7-day outlook
+        forecast: weather.forecast.slice(1, 8), // 7-day outlook
         is_mock: false
       });
     } catch (e: any) {

@@ -3,7 +3,18 @@ import axios from 'axios';
 interface DailyForecast {
   date: string;
   temp: number;
+  minTemp: number;
   condition: string;
+}
+
+interface WeatherData {
+  currentTemp: number;
+  todayHigh: number;
+  todayLow: number;
+  condition: string;
+  humidity: number;
+  windSpeed: number;
+  forecast: DailyForecast[];
 }
 
 const DISTRICT_COORDS: Record<string, {lat: number, lon: number}> = {
@@ -32,36 +43,50 @@ const DISTRICT_COORDS: Record<string, {lat: number, lon: number}> = {
 };
 
 export class WeatherService {
+  private static getCondition(code: number): string {
+    if (code === 0) return "Clear";
+    if (code >= 1 && code <= 3) return "Partly Cloudy";
+    if (code >= 45 && code <= 48) return "Fog";
+    if (code >= 51 && code <= 67) return "Rain";
+    if (code >= 71 && code <= 77) return "Snow";
+    if (code >= 80 && code <= 82) return "Showers";
+    if (code >= 95 && code <= 99) return "Thunderstorm";
+    return "Unknown";
+  }
+
   /**
-   * Get 14-day weather forecast using free Open-Meteo API
+   * Get exhaustive weather data using Open-Meteo API
    */
-  static async get14DayForecast(district: string): Promise<DailyForecast[]> {
+  static async getFullWeather(district: string): Promise<WeatherData | null> {
     try {
       const coords = DISTRICT_COORDS[district] || { lat: 29.6857, lon: 76.9907 };
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,weathercode&timezone=auto&forecast_days=14`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=14`;
       
       const response = await axios.get(url);
-      const daily = response.data.daily;
+      const data = response.data;
 
-      return daily.time.map((date: string, index: number) => {
-        const code = daily.weathercode[index];
-        let condition = "Clear";
-        if (code >= 1 && code <= 3) condition = "Partly Cloudy";
-        else if (code >= 45 && code <= 48) condition = "Fog";
-        else if (code >= 51 && code <= 67) condition = "Rain";
-        else if (code >= 71 && code <= 77) condition = "Snow";
-        else if (code >= 80 && code <= 82) condition = "Showers";
-        else if (code >= 95 && code <= 99) condition = "Thunderstorm";
+      const current = data.current;
+      const daily = data.daily;
 
-        return {
-          date,
-          temp: Math.round(daily.temperature_2m_max[index]),
-          condition
-        };
-      });
+      const forecast: DailyForecast[] = daily.time.map((date: string, index: number) => ({
+        date,
+        temp: Math.round(daily.temperature_2m_max[index]),
+        minTemp: Math.round(daily.temperature_2m_min[index]),
+        condition: this.getCondition(daily.weather_code[index])
+      }));
+
+      return {
+        currentTemp: Math.round(current.temperature_2m),
+        todayHigh: Math.round(daily.temperature_2m_max[0]),
+        todayLow: Math.round(daily.temperature_2m_min[0]),
+        condition: this.getCondition(current.weather_code),
+        humidity: current.relative_humidity_2m,
+        windSpeed: current.wind_speed_10m,
+        forecast
+      };
     } catch (e) {
       console.error('Weather Fetch Error:', e);
-      return [];
+      return null;
     }
   }
 }

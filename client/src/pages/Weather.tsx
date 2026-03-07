@@ -5,19 +5,24 @@ import { apiFetch } from '../services/api';
 interface ForecastItem {
   date: string;
   temp: number;
+  minTemp: number;
   condition: string;
 }
 
 interface WeatherData {
   temp: number;
+  todayHigh: number;
+  todayLow: number;
   condition: string;
+  humidity: number;
+  windSpeed: number;
   district: string;
   forecast?: ForecastItem[];
   is_mock: boolean;
 }
 
 const Weather: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,22 +92,34 @@ const Weather: React.FC = () => {
               </span>
             </div>
 
-            <div className="mt-12 mb-10 relative z-10">
-              <div className="flex items-start">
+            <div className="mt-12 mb-6 relative z-10">
+              <div className="flex items-baseline">
+                <span className="text-sm font-black uppercase tracking-widest opacity-70 mr-2">{isHindi ? 'अभी:' : 'Now:'}</span>
                 <h3 className="text-8xl font-black leading-none tracking-tighter">{weather.temp}</h3>
                 <span className="text-4xl font-bold mt-2">°C</span>
               </div>
               <p className="text-2xl font-black mt-4 uppercase tracking-tight italic opacity-90">{weather.condition}</p>
             </div>
 
+            <div className="flex gap-6 mb-10 relative z-10">
+              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10">
+                <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-0.5">{isHindi ? 'अधिकतम' : 'High'}</p>
+                <p className="text-xl font-black">{weather.todayHigh}°C</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10">
+                <p className="text-[9px] font-black uppercase opacity-60 tracking-widest mb-0.5">{isHindi ? 'न्यूनतम' : 'Low'}</p>
+                <p className="text-xl font-black">{weather.todayLow}°C</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-6 border-t border-white/20 pt-8 relative z-10">
               <div className="text-center">
                 <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'नमी' : 'Humidity'}</p>
-                <p className="font-black text-xl">42%</p>
+                <p className="font-black text-xl">{weather.humidity}%</p>
               </div>
               <div className="text-center border-x border-white/10">
                 <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'हवा' : 'Wind'}</p>
-                <p className="font-black text-xl">12<span className="text-xs ml-0.5">km/h</span></p>
+                <p className="font-black text-xl">{weather.windSpeed}<span className="text-xs ml-0.5">km/h</span></p>
               </div>
               <div className="text-center">
                 <p className="text-[9px] font-black uppercase opacity-50 tracking-widest mb-1">{isHindi ? 'बारिश' : 'Rain'}</p>
@@ -124,7 +141,7 @@ const Weather: React.FC = () => {
                   </span>
                   <div className="flex gap-4 w-24 justify-end items-baseline">
                     <span className="text-xl font-black text-slate-900">{day.temp}°</span>
-                    <span className="text-sm font-bold text-slate-300">{day.temp - 8}°</span>
+                    <span className="text-sm font-bold text-slate-300">{day.minTemp}°</span>
                   </div>
                 </div>
               )) || (
