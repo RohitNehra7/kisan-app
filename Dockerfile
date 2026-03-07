@@ -3,21 +3,20 @@ FROM node:18-alpine
 
 WORKDIR /usr/src/app
 
-# Copy server package files and install
+# 1. Install Dependencies
 COPY server/package*.json ./server/
 RUN cd server && npm install
 
-# Copy server source code
+# 2. Copy Source and Build
 COPY server/ ./server/
+RUN cd server && npm run build
 
-# Move into server directory
+# 3. Final Prep
 WORKDIR /usr/src/app/server
-
-# Build-time environment placeholders (Render will override these at runtime)
 ENV PORT=5000
 ENV NODE_ENV=production
 
 EXPOSE 5000
 
-# Use array form for CMD to properly handle signals and env vars
-CMD ["node", "index.js"]
+# Start the compiled JavaScript
+CMD ["node", "dist/index.js"]
