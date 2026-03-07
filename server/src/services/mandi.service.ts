@@ -1,7 +1,5 @@
 import axios from 'axios';
-import { MandiRecord } from '../types/db.types';
 import { supabase } from '../config/supabase';
-
 import { GeoService } from './geo.service';
 import { ArbitrageResult, MandiRecord } from '../types/db.types';
 
