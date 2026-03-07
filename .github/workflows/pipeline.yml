@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 18
       - name: Install Frontend Dependencies
-        run: cd client && npm install
+        run: cd client && npm install --legacy-peer-deps
       - name: Verify Production Build
         run: cd client && npm run build
 
