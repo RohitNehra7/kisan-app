@@ -12,6 +12,10 @@ export class MandiService {
   static async discoverAllMetadata(): Promise<void> {
     const apiKey = process.env.DATA_GOV_API_KEY;
     if (!apiKey) return;
+    if (!supabase) {
+      console.warn('⚠️ Skipping Metadata Discovery: Supabase client not initialized.');
+      return;
+    }
 
     console.log('🚀 Starting Autonomous Metadata Discovery...');
     
@@ -114,7 +118,7 @@ export class MandiService {
         arrivals_in_qtl: parseFloat(r.arrivals_in_qtl) || 0
       }));
 
-      if (cleanedData.length > 0) {
+      if (cleanedData.length > 0 && supabase) {
         supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' })
           .then(({ error }) => { if (error) console.warn('Supabase sync error', error.message); });
       }
@@ -131,6 +135,7 @@ export class MandiService {
    */
   static async getStates(): Promise<string[]> {
     try {
+      if (!supabase) throw new Error('No DB');
       const { data, error } = await supabase.from('mandi_directory').select('state');
       if (error) throw error;
       return Array.from(new Set(data.map(d => d.state))).sort();
@@ -144,6 +149,7 @@ export class MandiService {
    */
   static async getMarkets(state: string): Promise<string[]> {
     try {
+      if (!supabase) throw new Error('No DB');
       const { data, error } = await supabase
         .from('mandi_directory')
         .select('market')
@@ -160,6 +166,7 @@ export class MandiService {
    */
   static async getCommodities(state: string, market?: string): Promise<string[]> {
     try {
+      if (!supabase) throw new Error('No DB');
       if (market && market !== 'all') {
         // Find crops seen in this specific market from history
         const { data, error } = await supabase.rpc('get_unique_crops', { p_state: state, p_market: market });
@@ -179,6 +186,7 @@ export class MandiService {
    */
   static async getHistory(market: string, commodity: string): Promise<any[]> {
     try {
+      if (!supabase) throw new Error('No DB');
       const { data, error } = await supabase
         .from('prices')
         .select('arrival_date, modal_price, arrivals_in_qtl')

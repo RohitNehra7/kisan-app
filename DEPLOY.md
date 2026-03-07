@@ -12,7 +12,10 @@ Follow these steps to deploy the enterprise-grade platform for free.
     *   **Start Command**: `cd server && npm start`
 5.  **Environment Variables**: Add these in the Render Dashboard:
     *   `DATABASE_URL`: Your Supabase connection string.
+    *   `SUPABASE_URL`: Your Supabase Project URL.
+    *   `SUPABASE_KEY`: Your Supabase API Key (service_role recommended for metadata discovery).
     *   `DATA_GOV_API_KEY`: Your OGD India API Key.
+    *   `GEMINI_KEY`: Your Google Gemini API Key.
     *   `PORT`: `5000`
 
 ## 2. Frontend Deployment (Vercel.com)

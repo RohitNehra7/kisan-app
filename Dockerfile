@@ -1,5 +1,5 @@
 # Master Dockerfile for Render Mono-repo Deployment
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
