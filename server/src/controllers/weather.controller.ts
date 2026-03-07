@@ -22,11 +22,17 @@ export class WeatherController {
       res.json({
         success: true,
         temp: weather.currentTemp,
+        feelsLike: weather.feelsLike,
         todayHigh: weather.todayHigh,
         todayLow: weather.todayLow,
         condition: weather.condition,
         humidity: weather.humidity,
         windSpeed: weather.windSpeed,
+        uvIndex: weather.uvIndex,
+        visibility: weather.visibility,
+        isDay: weather.isDay,
+        sunrise: weather.sunrise,
+        sunset: weather.sunset,
         district,
         forecast: weather.forecast.slice(1, 8), // 7-day outlook
         is_mock: false

@@ -5,15 +5,25 @@ interface DailyForecast {
   temp: number;
   minTemp: number;
   condition: string;
+  uvIndex: number;
+  precipProb: number;
+  sunrise: string;
+  sunset: string;
 }
 
 interface WeatherData {
   currentTemp: number;
+  feelsLike: number;
   todayHigh: number;
   todayLow: number;
   condition: string;
   humidity: number;
   windSpeed: number;
+  uvIndex: number;
+  visibility: number;
+  isDay: boolean;
+  sunrise: string;
+  sunset: string;
   forecast: DailyForecast[];
 }
 
@@ -60,7 +70,7 @@ export class WeatherService {
   static async getFullWeather(district: string): Promise<WeatherData | null> {
     try {
       const coords = DISTRICT_COORDS[district] || { lat: 29.6857, lon: 76.9907 };
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=14`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=14`;
       
       const response = await axios.get(url);
       const data = response.data;
@@ -68,20 +78,34 @@ export class WeatherService {
       const current = data.current;
       const daily = data.daily;
 
+      const formatTime = (iso: string) => {
+        return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      };
+
       const forecast: DailyForecast[] = daily.time.map((date: string, index: number) => ({
         date,
         temp: Math.round(daily.temperature_2m_max[index]),
         minTemp: Math.round(daily.temperature_2m_min[index]),
-        condition: this.getCondition(daily.weather_code[index])
+        condition: this.getCondition(daily.weather_code[index]),
+        uvIndex: daily.uv_index_max[index],
+        precipProb: daily.precipitation_probability_max[index],
+        sunrise: formatTime(daily.sunrise[index]),
+        sunset: formatTime(daily.sunset[index])
       }));
 
       return {
         currentTemp: Math.round(current.temperature_2m),
+        feelsLike: Math.round(current.apparent_temperature),
         todayHigh: Math.round(daily.temperature_2m_max[0]),
         todayLow: Math.round(daily.temperature_2m_min[0]),
         condition: this.getCondition(current.weather_code),
         humidity: current.relative_humidity_2m,
         windSpeed: current.wind_speed_10m,
+        uvIndex: daily.uv_index_max[0],
+        visibility: Math.round(current.visibility / 1000), // convert to km
+        isDay: current.is_day === 1,
+        sunrise: formatTime(daily.sunrise[0]),
+        sunset: formatTime(daily.sunset[0]),
         forecast
       };
     } catch (e) {
