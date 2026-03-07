@@ -8,7 +8,7 @@ Follow these steps to deploy the enterprise-grade platform for free.
 3.  **Connect GitHub**: Select your repository.
 4.  **Configuration**:
     *   **Runtime**: `Node`
-    *   **Build Command**: `cd server && npm install`
+    *   **Build Command**: `cd server && npm install && npm run build`
     *   **Start Command**: `cd server && npm start`
 5.  **Environment Variables**: Add these in the Render Dashboard:
     *   `DATABASE_URL`: Your Supabase connection string.
