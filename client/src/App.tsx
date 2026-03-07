@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip 
 } from 'recharts';
+import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 import { translations, Language } from './translations';
 
@@ -388,6 +389,7 @@ function App() {
           </div>
         </div>
       )}
+      <Analytics />
     </div>
   );
 }
