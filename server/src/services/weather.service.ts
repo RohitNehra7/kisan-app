@@ -3,7 +3,31 @@ import axios from 'axios';
 interface DailyForecast {
   date: string;
   temp: number;
+  minTemp: number;
   condition: string;
+  uvIndex: number;
+  precipProb: number;
+  sunrise: string;
+  sunset: string;
+  et0?: number; // Evapotranspiration
+  soilTemp?: number;
+}
+
+interface WeatherData {
+  currentTemp: number;
+  feelsLike: number;
+  todayHigh: number;
+  todayLow: number;
+  condition: string;
+  humidity: number;
+  windSpeed: number;
+  uvIndex: number;
+  visibility: number | null;
+  isDay: boolean;
+  sunrise: string;
+  sunset: string;
+  district: string;
+  forecast: DailyForecast[];
 }
 
 const DISTRICT_COORDS: Record<string, {lat: number, lon: number}> = {
@@ -32,36 +56,80 @@ const DISTRICT_COORDS: Record<string, {lat: number, lon: number}> = {
 };
 
 export class WeatherService {
+  private static getCondition(code: number): string {
+    if (code === 0) return "Clear";
+    if (code >= 1 && code <= 3) return "Partly Cloudy";
+    if (code >= 45 && code <= 48) return "Fog";
+    if (code >= 51 && code <= 67) return "Rain";
+    if (code >= 71 && code <= 77) return "Snow";
+    if (code >= 80 && code <= 82) return "Showers";
+    if (code >= 95 && code <= 99) return "Thunderstorm";
+    return "Unknown";
+  }
+
   /**
-   * Get 14-day weather forecast using free Open-Meteo API
+   * Get exhaustive weather data using Open-Meteo API
    */
-  static async get14DayForecast(district: string): Promise<DailyForecast[]> {
+  static async getFullWeather(params: { district?: string, lat?: number, lon?: number }): Promise<WeatherData | null> {
     try {
-      const coords = DISTRICT_COORDS[district] || { lat: 29.6857, lon: 76.9907 };
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,weathercode&timezone=auto&forecast_days=14`;
+      let lat = params.lat;
+      let lon = params.lon;
+      let districtName = params.district || "Detected Location";
+
+      if (!lat || !lon) {
+        const coords = DISTRICT_COORDS[params.district || "Karnal"] || DISTRICT_COORDS["Karnal"];
+        lat = coords.lat;
+        lon = coords.lon;
+      }
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset,et0_fao_evapotranspiration&timezone=auto&forecast_days=14`;
       
       const response = await axios.get(url);
-      const daily = response.data.daily;
+      const data = response.data;
 
-      return daily.time.map((date: string, index: number) => {
-        const code = daily.weathercode[index];
-        let condition = "Clear";
-        if (code >= 1 && code <= 3) condition = "Partly Cloudy";
-        else if (code >= 45 && code <= 48) condition = "Fog";
-        else if (code >= 51 && code <= 67) condition = "Rain";
-        else if (code >= 71 && code <= 77) condition = "Snow";
-        else if (code >= 80 && code <= 82) condition = "Showers";
-        else if (code >= 95 && code <= 99) condition = "Thunderstorm";
+      if (!data || !data.current || !data.daily) return null;
 
-        return {
-          date,
-          temp: Math.round(daily.temperature_2m_max[index]),
-          condition
-        };
-      });
+      const current = data.current;
+      const daily = data.daily;
+
+      const formatTime = (iso: string) => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      };
+
+      const forecast: DailyForecast[] = daily.time.map((date: string, index: number) => ({
+        date,
+        temp: Math.round(daily.temperature_2m_max[index]),
+        minTemp: Math.round(daily.temperature_2m_min[index]),
+        condition: this.getCondition(daily.weather_code[index]),
+        uvIndex: daily.uv_index_max[index],
+        precipProb: daily.precipitation_probability_max[index],
+        sunrise: formatTime(daily.sunrise[index]),
+        sunset: formatTime(daily.sunset[index]),
+        et0: daily.et0_fao_evapotranspiration ? daily.et0_fao_evapotranspiration[index] : null
+      }));
+
+      return {
+        currentTemp: Math.round(current.temperature_2m),
+        feelsLike: Math.round(current.apparent_temperature),
+        todayHigh: Math.round(daily.temperature_2m_max[0]),
+        todayLow: Math.round(daily.temperature_2m_min[0]),
+        condition: this.getCondition(current.weather_code),
+        humidity: current.relative_humidity_2m,
+        windSpeed: current.wind_speed_10m,
+        uvIndex: daily.uv_index_max[0],
+        visibility: current.visibility ? Math.round(current.visibility / 1000) : null, 
+        isDay: current.is_day === 1,
+        sunrise: formatTime(daily.sunrise[0]),
+        sunset: formatTime(daily.sunset[0]),
+        district: districtName,
+        forecast
+      };
     } catch (e) {
       console.error('Weather Fetch Error:', e);
-      return [];
+      return null;
     }
   }
 }
