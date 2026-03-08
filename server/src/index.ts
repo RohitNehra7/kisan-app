@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -9,6 +9,7 @@ import advisoryRoutes from './routes/advisory.routes';
 import weatherRoutes from './routes/weather.routes';
 import forumRoutes from './routes/forum.routes';
 import { MandiService } from './services/mandi.service';
+import { supabase } from './config/supabase';
 
 import { errorHandler } from './middleware/errorHandler';
 
@@ -42,7 +43,7 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/forum', forumRoutes);
 
 // 4. Diagnostics & Maintenance
-app.get('/api/diagnostics', async (req, res) => {
+app.get('/api/diagnostics', async (req: Request, res: Response) => {
   let stats = { prices: 0, directory: 0, msp: 0 };
   try {
     if (supabase) {
@@ -63,7 +64,7 @@ app.get('/api/diagnostics', async (req, res) => {
   });
 });
 
-app.post('/api/admin/force-sync', async (req, res) => {
+app.post('/api/admin/force-sync', async (req: Request, res: Response) => {
   console.log('⚡ Manual sync triggered via API');
   MandiService.discoverAllMetadata();
   MandiService.syncAllMarketPrices();
