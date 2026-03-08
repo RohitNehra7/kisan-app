@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import SEO from '../components/common/Seo';
+import SEO from '../components/common/KisanSeo';
 
 interface Scheme {
   id: string;

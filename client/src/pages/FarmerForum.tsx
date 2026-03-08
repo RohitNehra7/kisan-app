@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
 import { trackEvent } from '../services/analytics';
-import SEO from '../components/common/Seo';
+import SEO from '../components/common/KisanSeo';
 
 interface Post {
   id: string;
