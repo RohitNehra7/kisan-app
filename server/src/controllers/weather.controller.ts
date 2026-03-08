@@ -6,11 +6,14 @@ export class WeatherController {
     try {
       const { district, lat, lon } = req.query;
       
-      const weather = await WeatherService.getFullWeather({
-        district: district as string,
-        lat: lat ? parseFloat(lat as string) : undefined,
-        lon: lon ? parseFloat(lon as string) : undefined
-      });
+      const weatherParams: { district?: string; lat?: number; lon?: number } = {
+        district: district as string
+      };
+      
+      if (lat) weatherParams.lat = parseFloat(lat as string);
+      if (lon) weatherParams.lon = parseFloat(lon as string);
+
+      const weather = await WeatherService.getFullWeather(weatherParams);
       
       if (!weather) {
         return res.json({ 

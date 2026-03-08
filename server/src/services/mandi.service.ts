@@ -263,4 +263,26 @@ export class MandiService {
       return [];
     }
   }
+
+  /**
+   * Get 7-day average arrivals for a district and crop
+   */
+  static async getAvg7dArrivals(district: string, crop: string): Promise<number> {
+    try {
+      if (!supabase) return 0;
+      const { data, error } = await supabase
+        .from('prices')
+        .select('arrivals_in_qtl')
+        .eq('district', district)
+        .eq('commodity', crop)
+        .order('arrival_date', { ascending: false })
+        .limit(7);
+
+      if (error || !data || data.length === 0) return 0;
+      const sum = data.reduce((acc, r) => acc + (r.arrivals_in_qtl || 0), 0);
+      return Math.round(sum / data.length);
+    } catch (e) {
+      return 0;
+    }
+  }
 }

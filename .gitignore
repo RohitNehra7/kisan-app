@@ -44,3 +44,5 @@ Thumbs.db
 # Project specific
 .gemini/
 metadata/
+CEO_VISION.md
+PHASE_*.md

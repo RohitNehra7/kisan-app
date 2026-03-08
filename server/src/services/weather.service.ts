@@ -77,7 +77,7 @@ export class WeatherService {
       let districtName = params.district || "Detected Location";
 
       if (!lat || !lon) {
-        const coords = DISTRICT_COORDS[params.district || "Karnal"] || DISTRICT_COORDS["Karnal"];
+        const coords = DISTRICT_COORDS[params.district || "Karnal"] || { lat: 29.6857, lon: 76.9907 };
         lat = coords.lat;
         lon = coords.lon;
       }

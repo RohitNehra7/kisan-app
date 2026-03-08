@@ -40,6 +40,11 @@ export interface SellHoldResponse {
   expected_price_max: number;
   hindi_reason: string;
   risk_note: string;
+  mandis_checked?: string[];
+  data_freshness?: string;
+  arrival_signal?: string;
+  data_age_days?: number;
+  stale_disclaimer?: string;
 }
 
 export interface ForumPost {

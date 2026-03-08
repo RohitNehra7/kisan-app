@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../services/api';
@@ -11,6 +12,7 @@ const pageVariants = {
 };
 
 const FarmerOnboarding: React.FC = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
@@ -68,14 +70,14 @@ const FarmerOnboarding: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] px-4">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl mb-4">✅</div>
-        <h2 className="text-2xl font-black text-center mb-2 italic tracking-tighter uppercase text-primary">Profile Saved!</h2>
-        <p className="text-slate-500 text-center text-xs font-bold uppercase tracking-widest mb-8">Your personalized market AI is ready.</p>
+        <h2 className="text-2xl font-black text-center mb-2 italic tracking-tighter uppercase text-primary">प्रोफ़ाइल सेव हो गई!</h2>
+        <p className="text-slate-500 text-center text-xs font-bold uppercase tracking-widest mb-8">आपका व्यक्तिगत एआई सलाहकार तैयार है।</p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <Link to="/advisory" className="bg-primary text-white px-8 py-4 rounded-3xl font-black uppercase tracking-tight text-center shadow-lg shadow-primary/20">
-            Get AI Recommendations
+            AI सुझाव लें
           </Link>
           <Link to="/forum" className="bg-slate-900 text-white px-8 py-4 rounded-3xl font-black uppercase tracking-tight text-center shadow-lg">
-            Join Farmer Forum
+            किसान चौपाल में जुड़ें
           </Link>
         </div>
       </div>
@@ -92,39 +94,39 @@ const FarmerOnboarding: React.FC = () => {
     >
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-black text-primary mb-1 uppercase tracking-tighter italic">Setup Profile</h1>
-          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Enterprise Intelligence for Your Farm</p>
+          <h1 className="text-3xl font-black text-primary mb-1 uppercase tracking-tighter italic">प्रोफ़ाइल सेटअप</h1>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">अपने खेत के लिए स्मार्ट जानकारी पाएँ</p>
         </div>
-        <Link to="/forum" className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-xl shadow-sm" title="Farmer Forum">🤝</Link>
+        <Link to="/forum" className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-xl shadow-sm" title="किसान चौपाल">🤝</Link>
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-2xl">
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मोबाइल नंबर</label>
             <input 
               type="tel" required
               value={formData.phone}
               onChange={e => setFormData({...formData, phone: e.target.value})}
               className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20 text-lg"
-              placeholder="10-digit mobile"
+              placeholder="10 अंकों का मोबाइल नंबर"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">आपका पूरा नाम</label>
             <input 
               type="text" required
               value={formData.name}
               onChange={e => setFormData({...formData, name: e.target.value})}
               className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20"
-              placeholder="Your Name"
+              placeholder="नाम लिखें"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">District</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">जिला</label>
               <select 
                 value={formData.district}
                 onChange={e => setFormData({...formData, district: e.target.value})}
@@ -135,7 +137,7 @@ const FarmerOnboarding: React.FC = () => {
             </div>
             
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Main Crop</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मुख्य फसल</label>
               <select 
                 value={formData.main_crop}
                 onChange={e => setFormData({...formData, main_crop: e.target.value})}
@@ -148,7 +150,7 @@ const FarmerOnboarding: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity (Quintals)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">कुल मात्रा (क्विंटल)</label>
               <input 
                 type="number" 
                 value={formData.quantity_quintals}
@@ -158,7 +160,7 @@ const FarmerOnboarding: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Storage (₹/day)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">भण्डारण खर्च (₹/दिन)</label>
               <input 
                 type="number" step="0.1"
                 value={formData.storage_cost_per_day}
@@ -170,8 +172,8 @@ const FarmerOnboarding: React.FC = () => {
 
           <div className="bg-green-50 rounded-3xl p-5 border border-green-100 flex items-center justify-between">
             <div>
-              <p className="font-black text-green-800 text-sm leading-tight uppercase tracking-tight">WhatsApp Alerts</p>
-              <p className="text-[9px] font-bold text-green-600 uppercase tracking-widest">Get daily price pulses</p>
+              <p className="font-black text-green-800 text-sm leading-tight uppercase tracking-tight">WhatsApp अपडेट</p>
+              <p className="text-[9px] font-bold text-green-600 uppercase tracking-widest">रोज़ाना मंडी भाव पाएँ</p>
             </div>
             <button 
               type="button"
@@ -183,7 +185,7 @@ const FarmerOnboarding: React.FC = () => {
           </div>
 
           <button type="submit" disabled={isLoading} className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black text-xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all mt-4 flex justify-center items-center gap-3 active:scale-95">
-            {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : 'ACTIVATE AI PROFILE'}
+            {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : 'AI प्रोफ़ाइल चालू करें'}
           </button>
         </form>
       </div>
