@@ -5,10 +5,6 @@ import { ArbitrageResult, MandiRecord } from '../types';
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
-// Enterprise Sync Throttle: Prevents redundant DB writes within a 15-minute window
-const lastSyncMap = new Map<string, number>();
-const SYNC_COOLDOWN_MS = 15 * 60 * 1000; 
-
 export class MandiService {
   /**
    * Calculate Arbitrage (Net Profit) for a crop across major mandis
@@ -265,7 +261,7 @@ export class MandiService {
    */
   static async getPricesFromDB(state: string, commodity?: string, market?: string): Promise<MandiRecord[]> {
     try {
-      if (!supabase) throw new Error('DB not initialized');
+      if (!supabase) return [];
 
       let query = supabase
         .from('prices')
@@ -304,10 +300,11 @@ export class MandiService {
    */
   static async getStates(): Promise<string[]> {
     try {
-      if (!supabase) throw new Error('No DB');
+      if (!supabase) return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
       const { data, error } = await supabase.from('mandi_directory').select('state');
       if (error) throw error;
-      return Array.from(new Set(data.map(d => d.state))).sort();
+      const states = Array.from(new Set(data.map(d => d.state))).sort();
+      return states.length > 0 ? states : ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
     } catch (e) {
       return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
     }
@@ -318,7 +315,7 @@ export class MandiService {
    */
   static async getMarkets(state: string): Promise<string[]> {
     try {
-      if (!supabase) throw new Error('No DB');
+      if (!supabase) return [];
       const { data, error } = await supabase
         .from('mandi_directory')
         .select('market')
@@ -335,7 +332,7 @@ export class MandiService {
    */
   static async getCommodities(state: string, market?: string): Promise<string[]> {
     try {
-      if (!supabase) throw new Error('No DB');
+      if (!supabase) return [];
       if (market && market !== 'all') {
         // Find crops seen in this specific market from history
         const { data, error } = await supabase.rpc('get_unique_crops', { p_state: state, p_market: market });
@@ -355,7 +352,7 @@ export class MandiService {
    */
   static async getHistory(market: string, commodity: string): Promise<any[]> {
     try {
-      if (!supabase) throw new Error('No DB');
+      if (!supabase) return [];
       const { data, error } = await supabase
         .from('prices')
         .select('arrival_date, modal_price, arrivals_in_qtl')
