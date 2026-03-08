@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { captureEvent } from '../services/posthog';
 import { apiFetch } from '../services/api';
 import { trackEvent } from '../services/analytics';
-import SEO from '../components/common/SEO';
+import SEO from '../components/common/Seo';
 import { HARYANA_PRIMARY_CROPS, TIER1_DISTRICTS } from '../constants/haryana.constants';
 import type { SellHoldRequest } from '../types/api.types';
 

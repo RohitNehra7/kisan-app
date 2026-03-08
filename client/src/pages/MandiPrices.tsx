@@ -14,7 +14,7 @@ import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
 import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
-import SEO from '../components/common/SEO';
+import SEO from '../components/common/Seo';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
 

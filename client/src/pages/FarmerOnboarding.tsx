@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../services/api';
 import { trackEvent } from '../services/analytics';
-import SEO from '../components/common/SEO';
+import SEO from '../components/common/Seo';
 import { HARYANA_PRIMARY_CROPS, HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 const pageVariants = {

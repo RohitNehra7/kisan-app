@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../services/api';
 import { trackEvent } from '../services/analytics';
-import SEO from '../components/common/SEO';
+import SEO from '../components/common/Seo';
 import { HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 interface ForecastItem {
