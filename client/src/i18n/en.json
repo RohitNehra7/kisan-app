@@ -94,5 +94,18 @@
     "empty_title": "No Favorites Yet",
     "empty_hint": "Tap the ❤️ on any crop to save it here",
     "browse_all": "Browse All Crops"
+  },
+  "seo": {
+    "default_title": "KisanNiti - Digital Farmhand for Indian Farmers",
+    "default_description": "Real-time Mandi prices, AI crop advisory, and precision weather for Haryana and Punjab farmers.",
+    "mandi_title": "Mandi Prices",
+    "mandi_description": "Get live market rates and arrivals for all agricultural mandis.",
+    "advisory_title": "Sell or Hold? - AI Advice",
+    "advisory_description": "Optimize your crop selling decisions with AI and data-driven insights.",
+    "weather_title": "Precision Weather Forecast",
+    "weather_description": "Localized weather updates and harvest advisory for farmers.",
+    "msp_title": "MSP Bodyguard",
+    "msp_description": "Compare your offered price with Government MSP and avoid losses.",
+    "profile_title": "My Farm Profile"
   }
 }

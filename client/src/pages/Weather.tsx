@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../services/api';
+import SEO from '../components/common/SEO';
 import { HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 interface ForecastItem {
@@ -34,7 +35,7 @@ interface WeatherData {
 }
 
 const Weather: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
@@ -123,6 +124,10 @@ const Weather: React.FC = () => {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 pb-32">
+      <SEO 
+        title={t('seo.weather_title')} 
+        description={t('seo.weather_description')} 
+      />
       <div className="text-center mb-8">
         <h1 className="text-4xl font-black text-primary uppercase tracking-tighter italic leading-none">
           {isHindi ? 'किसान मौसम' : 'Kisan Mausam'}

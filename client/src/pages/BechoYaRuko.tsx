@@ -5,6 +5,7 @@ import { Preferences } from '@capacitor/preferences';
 import { Link } from 'react-router-dom';
 import { captureEvent } from '../services/posthog';
 import { apiFetch } from '../services/api';
+import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS, TIER1_DISTRICTS } from '../constants/haryana.constants';
 import type { SellHoldRequest } from '../types/api.types';
 
@@ -139,6 +140,10 @@ const BechoYaRuko: React.FC = () => {
       transition={{ duration: 0.3 }}
       className="max-w-3xl mx-auto px-4 py-8 md:py-12 pb-32"
     >
+      <SEO 
+        title={t('seo.advisory_title')} 
+        description={t('seo.advisory_description')} 
+      />
       <div className="text-center mb-10">
         <h1 className="text-4xl font-black text-primary mb-2 uppercase tracking-tighter italic leading-none">
           {t('advisory.title')}
