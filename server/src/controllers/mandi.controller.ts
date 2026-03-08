@@ -6,12 +6,13 @@ import { MandiRecord, ArbitrageResult } from '../types';
 export class MandiController {
   static async getPrices(req: Request, res: Response) {
     try {
-      const { state, commodity, market, limit } = req.query;
-      const data = await MandiService.fetchAndSyncPrices(
+      const { state, commodity, market } = req.query;
+      if (!state) return res.status(400).json({ error: 'State is required' });
+
+      const data = await MandiService.getPricesFromDB(
         state as string, 
         commodity as string, 
-        market as string,
-        limit ? parseInt(limit as string) : 1000
+        market as string
       );
       res.json({ success: true, count: data.length, data });
     } catch (e: any) {
@@ -42,7 +43,7 @@ export class MandiController {
   static async getCommodities(req: Request, res: Response) {
     try {
       const { state, market } = req.query;
-      if (!state || !market) return res.status(400).json({ error: 'State and Market are required' });
+      if (!state) return res.status(400).json({ error: 'State is required' });
       const data = await MandiService.getCommodities(state as string, market as string);
       res.json({ success: true, data });
     } catch (e: any) {
