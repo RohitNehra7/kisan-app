@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+import { useInView } from 'react-intersection-observer';
 import { apiFetch } from '../../services/api';
 import { MSP_2025 } from '../../constants/haryana.constants';
 import type { MandiPrice, UnitType } from '../../types/mandi.types';
@@ -22,17 +23,29 @@ const PriceCard: React.FC<PriceCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const [trendData, setTrendData] = useState<any[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
+
+  // Lazy loading hook: triggered when card is 10% visible
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
 
   useEffect(() => {
-    const fetchTrend = async () => {
-      try {
-        const resp = await apiFetch(`/api/mandi/history?market=${encodeURIComponent(record.market)}&commodity=${encodeURIComponent(record.commodity)}`);
-        const json = await resp.json();
-        if (json.success) setTrendData(json.data.slice(-7));
-      } catch (e) {}
-    };
-    fetchTrend();
-  }, [record.market, record.commodity]);
+    if (inView && !hasFetched) {
+      const fetchTrend = async () => {
+        try {
+          const resp = await apiFetch(`/api/mandi/history?market=${encodeURIComponent(record.market)}&commodity=${encodeURIComponent(record.commodity)}`);
+          const json = await resp.json();
+          if (json.success) {
+            setTrendData(json.data.slice(-7));
+            setHasFetched(true);
+          }
+        } catch (e) {}
+      };
+      fetchTrend();
+    }
+  }, [inView, hasFetched, record.market, record.commodity]);
 
   const convertPrice = (price: number) => {
     if (unit === 'maund') return Math.round(price * 0.4);

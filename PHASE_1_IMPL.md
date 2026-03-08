@@ -40,5 +40,10 @@ This document outlines the technical improvements and new features implemented d
 - **Metrics**: Captures `page_view`, `advisory_requested`, `profile_activated`, and `scheme_checked` events.
 - **Persistence**: All events are logged to the `app_events` table in Supabase for DAU calculation.
 
+### 4. Performance Optimization: Sparkline Lazy-Loading
+- **Problem**: Adding 7-day sparklines to every Mandi card triggered 100+ simultaneous API calls on page load, causing 429 (Too Many Requests) errors and significant UI lag.
+- **Solution**: Implemented **Intersection Observer** (via `react-intersection-observer`). Sparkline data is now only fetched when a card actually enters the user's viewport.
+- **Result**: Initial page load now triggers **Zero** history calls. Data is fetched smoothly as the user scrolls, protecting the backend and ensuring a fluid 60fps experience.
+
 ---
 *Verified and Built by Gemini CLI Staff Engineering Agent.*
