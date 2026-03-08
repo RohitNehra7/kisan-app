@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
+import { trackEvent } from '../services/analytics';
 import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS } from '../constants/haryana.constants';
 
@@ -39,6 +40,7 @@ const MSPCheck: React.FC = () => {
       }
     };
     fetchMSP();
+    trackEvent('msp_check_view');
   }, []);
 
   const toQuintal = (quantity: number, unit: string): number => {
