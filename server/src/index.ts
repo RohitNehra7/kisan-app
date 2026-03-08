@@ -8,6 +8,7 @@ import mandiRoutes from './routes/mandi.routes';
 import advisoryRoutes from './routes/advisory.routes';
 import weatherRoutes from './routes/weather.routes';
 import forumRoutes from './routes/forum.routes';
+import schemeRoutes from './routes/scheme.routes';
 import { MandiService } from './services/mandi.service';
 import { MspService } from './services/msp.service';
 import { supabase } from './config/supabase';
@@ -42,6 +43,7 @@ app.use('/api/mandi', mandiRoutes);
 app.use('/api/advisory', advisoryRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/forum', forumRoutes);
+app.use('/api/schemes', schemeRoutes);
 
 // 4. Diagnostics & Maintenance
 app.get('/api/diagnostics', async (req: Request, res: Response) => {
