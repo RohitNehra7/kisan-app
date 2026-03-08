@@ -6,7 +6,7 @@ export interface FeatureFlags {
 }
 
 const devFlags: FeatureFlags = {
-  enableLiveMandiPulse: true,
+  enableLiveMandiPulse: false,
   enableAdvisoryEngine: true,
   enableWeatherDashboard: true,
   enableFarmerForum: true,
