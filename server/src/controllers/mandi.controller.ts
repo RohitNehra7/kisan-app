@@ -9,11 +9,23 @@ export class MandiController {
       const { state, commodity, market } = req.query;
       if (!state) return res.status(400).json({ error: 'State is required' });
 
-      const data = await MandiService.getPricesFromDB(
+      let data = await MandiService.getPricesFromDB(
         state as string, 
         commodity as string, 
         market as string
       );
+
+      // Self-Healing Fallback: If DB is empty/unreachable, fetch live
+      if (!data || data.length === 0) {
+        console.warn(`⚠️ [Self-Healing] DB empty for ${state}. Fetching live...`);
+        data = await MandiService.fetchAndSyncPrices(
+          state as string, 
+          commodity as string, 
+          market as string,
+          1000
+        );
+      }
+
       res.json({ success: true, count: data.length, data });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });

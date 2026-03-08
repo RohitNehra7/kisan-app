@@ -84,7 +84,11 @@ export class WeatherService {
 
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,is_day,weather_code,relative_humidity_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min,weather_code,uv_index_max,precipitation_probability_max,sunrise,sunset,et0_fao_evapotranspiration&timezone=auto&forecast_days=14`;
       
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'KisanNiti-Enterprise-App/1.0 (contact: info@kisanniti.in)'
+        }
+      });
       const data = response.data;
 
       if (!data || !data.current || !data.daily) return null;

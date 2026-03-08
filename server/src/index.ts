@@ -41,15 +41,33 @@ app.use('/api/advisory', advisoryRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/forum', forumRoutes);
 
-// 4. Diagnostics
+// 4. Diagnostics & Maintenance
 app.get('/api/diagnostics', async (req, res) => {
+  let stats = { prices: 0, directory: 0, msp: 0 };
+  try {
+    if (supabase) {
+      const { count: pCount } = await supabase.from('prices').select('*', { count: 'exact', head: true });
+      const { count: dCount } = await supabase.from('mandi_directory').select('*', { count: 'exact', head: true });
+      const { count: mCount } = await supabase.from('msp_values').select('*', { count: 'exact', head: true });
+      stats = { prices: pCount || 0, directory: dCount || 0, msp: mCount || 0 };
+    }
+  } catch (e) {}
+
   res.json({
     status: "healthy",
     gemini: !!process.env.GEMINI_KEY,
     supabase: !!process.env.SUPABASE_KEY,
     data_gov: !!process.env.DATA_GOV_API_KEY,
+    db_stats: stats,
     timestamp: new Date().toISOString()
   });
+});
+
+app.post('/api/admin/force-sync', async (req, res) => {
+  console.log('⚡ Manual sync triggered via API');
+  MandiService.discoverAllMetadata();
+  MandiService.syncAllMarketPrices();
+  res.json({ success: true, message: "Sync started in background" });
 });
 
 // 5. Error Handler
