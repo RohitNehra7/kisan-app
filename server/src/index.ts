@@ -29,13 +29,18 @@ const PORT = process.env.PORT || 5000;
 // 1. Rate Limiting (Security)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 10000, // High limit for local testing
   message: { error: "Too many requests, please try again later." }
 });
 
 // 2. Middleware
 app.use(limiter);
-app.use(cors({ origin: '*', optionsSuccessStatus: 200 }));
+app.use(cors({ 
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200 
+}));
 app.use(express.json());
 
 // 3. Routes
