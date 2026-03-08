@@ -241,8 +241,13 @@ export class MandiService {
           arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
         }));
 
+        // DEDUPLICATE within the batch to prevent Postgres conflict error
+        const uniqueBatch = Array.from(new Map(
+          cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
+        ).values());
+
         if (supabase) {
-          const { error } = await supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' });
+          const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
           if (error) console.warn(`⚠️ [Warehouse] Sync error for ${state}:`, error.message);
         }
 
