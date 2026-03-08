@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: kisan-app-backend-pr
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: cd server && npm install && npm run build
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - fromGroup: kisan-secrets # You should create this group in Render Dashboard
+    pullRequestPreviewsEnabled: true # This enables the PR builds
