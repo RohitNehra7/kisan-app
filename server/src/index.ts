@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import mandiRoutes from './routes/mandi.routes';
 import advisoryRoutes from './routes/advisory.routes';
 import weatherRoutes from './routes/weather.routes';
+import forumRoutes from './routes/forum.routes';
 import { MandiService } from './services/mandi.service';
 
 import { errorHandler } from './middleware/errorHandler';
@@ -38,6 +39,7 @@ app.use(express.json());
 app.use('/api/mandi', mandiRoutes);
 app.use('/api/advisory', advisoryRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/forum', forumRoutes);
 
 // 4. Diagnostics
 app.get('/api/diagnostics', async (req, res) => {

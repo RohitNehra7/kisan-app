@@ -133,6 +133,15 @@ const FarmerForum: React.FC = () => {
             <div className="w-10 h-10 border-4 border-primary/10 border-t-primary rounded-full animate-spin"></div>
             <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">{t('forum.loading')}</p>
           </div>
+        ) : posts.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200 text-center px-6 shadow-sm">
+            <span className="text-6xl mb-6">🤝</span>
+            <h3 className="text-xl font-black text-slate-800 mb-2">{t('forum.empty_title')}</h3>
+            <p className="text-slate-400 font-bold text-sm max-w-xs leading-relaxed">{t('forum.empty_hint')}</p>
+            <button onClick={() => setShowAdd(true)} className="mt-8 bg-primary text-white px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95">
+              {t('forum.form_submit')}
+            </button>
+          </motion.div>
         ) : posts.map((post, i) => (
           <motion.div 
             key={post.id}

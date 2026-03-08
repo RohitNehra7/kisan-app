@@ -26,6 +26,8 @@ export const MSP_2025: Record<string, number> = {
   'Barley': 1850,
 };
 
+export const TIER1_DISTRICTS = ['Karnal', 'Kaithal', 'Ambala', 'Hisar', 'Kurukshetra', 'Sirsa', 'Fatehabad'];
+
 export const HARYANA_MANDIS: Record<string, string[]> = {
   'Karnal':       ['Karnal', 'Nilokheri', 'Assandh'],
   'Kaithal':      ['Kaithal', 'Pundri', 'Kalayat'],

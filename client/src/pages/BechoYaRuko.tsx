@@ -2,15 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Preferences } from '@capacitor/preferences';
+import { Link } from 'react-router-dom';
 import { captureEvent } from '../services/posthog';
 import { apiFetch } from '../services/api';
-import { HARYANA_PRIMARY_CROPS, HARYANA_DISTRICTS } from '../constants/haryana.constants';
-import type { SellHoldRecommendation, SellHoldRequest } from '../types/api.types';
+import { HARYANA_PRIMARY_CROPS, TIER1_DISTRICTS } from '../constants/haryana.constants';
+import type { SellHoldRequest } from '../types/api.types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -10 },
+};
+
+const NonTier1Message: React.FC<{ district: string }> = ({ district }) => {
+  return (
+    <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 text-center">
+      <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">📍</div>
+      <h2 className="text-xl font-black text-slate-900 mb-4 leading-tight uppercase tracking-tighter italic">
+        आपके जिले {district} के लिए AI सुझाव जल्द आएगा।
+      </h2>
+      <p className="text-slate-500 font-bold text-sm mb-8 leading-relaxed">
+        अभी MSP सुरक्षा जाँच करें — यह हर जिले में काम करती है।
+      </p>
+      <Link 
+        to="/msp-check"
+        className="inline-block bg-primary text-white px-8 py-4 rounded-3xl font-black uppercase tracking-tight shadow-lg shadow-primary/20 transition-all active:scale-95"
+      >
+        💰 MSP जाँचें
+      </Link>
+    </div>
+  );
 };
 
 const BechoYaRuko: React.FC = () => {
@@ -26,9 +47,8 @@ const BechoYaRuko: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [result, setResult] = useState<SellHoldRecommendation | null>(null);
+  const [result, setResult] = useState<any | null>(null);
   const [availableCrops, setAvailableCrops] = useState<string[]>([]);
-  const [availableDistricts] = useState<string[]>(HARYANA_DISTRICTS);
 
   useEffect(() => {
     const loadMetadata = async () => {
@@ -52,8 +72,8 @@ const BechoYaRuko: React.FC = () => {
   }, []);
 
   const steps = [
-    { icon: '📊', label: t('advisory.loading_step1') },
-    { icon: '🌦️', label: t('advisory.loading_step2') },
+    { icon: '🌾', label: t('advisory.loading_step1') },
+    { icon: '🌤️', label: t('advisory.loading_step2') },
     { icon: '🤖', label: t('advisory.loading_step3') }
   ];
 
@@ -66,11 +86,11 @@ const BechoYaRuko: React.FC = () => {
 
     // Step 1: Simulated animation for Mandi Data
     setLoadingStep(0);
-    await new Promise(res => setTimeout(res, 1000));
+    await new Promise(res => setTimeout(res, 1200));
     
     // Step 2: Simulated animation for Weather
     setLoadingStep(1);
-    await new Promise(res => setTimeout(res, 1000));
+    await new Promise(res => setTimeout(res, 1200));
 
     // Step 3: AI Processing
     setLoadingStep(2);
@@ -108,6 +128,8 @@ const BechoYaRuko: React.FC = () => {
     }
   };
 
+  const isTier1 = TIER1_DISTRICTS.includes(formData.district);
+
   return (
     <motion.div 
       variants={pageVariants}
@@ -127,64 +149,70 @@ const BechoYaRuko: React.FC = () => {
       </div>
 
       {!isLoading && !result && (
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_crop')}</label>
-              <select 
-                value={formData.crop}
-                onChange={e => setFormData({...formData, crop: e.target.value})}
-                className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
-              >
-                {availableCrops.length > 0 ? availableCrops.map(c => <option key={c} value={c}>{c}</option>) : HARYANA_PRIMARY_CROPS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+        <>
+          {!isTier1 ? (
+            <NonTier1Message district={formData.district} />
+          ) : (
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-2xl">
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_crop')}</label>
+                  <select 
+                    value={formData.crop}
+                    onChange={e => setFormData({...formData, crop: e.target.value})}
+                    className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+                  >
+                    {availableCrops.length > 0 ? availableCrops.map(c => <option key={c} value={c}>{c}</option>) : HARYANA_PRIMARY_CROPS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_quantity')}</label>
-              <input 
-                type="number" 
-                value={formData.quantity}
-                onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value)})}
-                className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_quantity')}</label>
+                  <input 
+                    type="number" 
+                    value={formData.quantity}
+                    onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value)})}
+                    className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_district')}</label>
-              <select 
-                value={formData.district}
-                onChange={e => setFormData({...formData, district: e.target.value})}
-                className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
-              >
-                {availableDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_district')}</label>
+                  <select 
+                    value={formData.district}
+                    onChange={e => setFormData({...formData, district: e.target.value})}
+                    className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer"
+                  >
+                    {TIER1_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_storage')}</label>
-              <input 
-                type="number" step="0.1"
-                value={formData.storageCostPerDay}
-                onChange={e => setFormData({...formData, storageCostPerDay: parseFloat(e.target.value)})}
-                className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('advisory.form_storage')}</label>
+                  <input 
+                    type="number" step="0.1"
+                    value={formData.storageCostPerDay}
+                    onChange={e => setFormData({...formData, storageCostPerDay: parseFloat(e.target.value)})}
+                    className="bg-slate-50 border-none rounded-2xl px-5 py-4 font-bold focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
 
-            <div className="md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-4 text-center">{t('advisory.form_urgency')}</label>
-              <div className="grid grid-cols-3 gap-3">
-                <button type="button" onClick={() => setFormData({...formData, urgency: 'now'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === 'now' ? 'bg-[#B71C1C] border-[#B71C1C] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_now')}</button>
-                <button type="button" onClick={() => setFormData({...formData, urgency: '2weeks'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === '2weeks' ? 'bg-[#E65100] border-[#E65100] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_2weeks')}</button>
-                <button type="button" onClick={() => setFormData({...formData, urgency: 'flexible'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === 'flexible' ? 'bg-[#1B5E20] border-[#1B5E20] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_flexible')}</button>
-              </div>
-            </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-4 text-center">{t('advisory.form_urgency')}</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button type="button" onClick={() => setFormData({...formData, urgency: 'now'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === 'now' ? 'bg-[#B71C1C] border-[#B71C1C] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_now')}</button>
+                    <button type="button" onClick={() => setFormData({...formData, urgency: '2weeks'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === '2weeks' ? 'bg-[#E65100] border-[#E65100] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_2weeks')}</button>
+                    <button type="button" onClick={() => setFormData({...formData, urgency: 'flexible'})} className={`py-4 rounded-2xl text-[10px] font-black border-2 transition-all ${formData.urgency === 'flexible' ? 'bg-[#1B5E20] border-[#1B5E20] text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'}`}>{t('advisory.urgency_flexible')}</button>
+                  </div>
+                </div>
 
-            <button type="submit" className="md:col-span-2 bg-primary text-white py-5 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all mt-4 flex items-center justify-center gap-3 active:scale-95">
-              {t('advisory.submit_btn')} <span className="text-2xl">→</span>
-            </button>
-          </form>
-        </div>
+                <button type="submit" className="md:col-span-2 bg-primary text-white py-5 rounded-3xl font-black text-xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all mt-4 flex items-center justify-center gap-3 active:scale-95">
+                  {t('advisory.submit_btn')} <span className="text-2xl">→</span>
+                </button>
+              </form>
+            </div>
+          )}
+        </>
       )}
 
       <AnimatePresence>
@@ -212,9 +240,14 @@ const BechoYaRuko: React.FC = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-8">
           <div className={`rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border-2 ${getDecisionStyles(result.decision).bg}`} style={{ borderColor: getDecisionStyles(result.decision).color }}>
             <div className="flex justify-between items-start mb-8 relative z-10">
-              <span className="bg-white/80 backdrop-blur-md px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: getDecisionStyles(result.decision).color }}>
-                {t(`advisory.confidence_${result.confidence.toLowerCase()}` as any)}
-              </span>
+              <div className="flex flex-col gap-2">
+                <span className="bg-white/80 backdrop-blur-md px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] w-fit" style={{ color: getDecisionStyles(result.decision).color }}>
+                  {t(`advisory.confidence_${result.confidence.toLowerCase()}` as any)}
+                </span>
+                <span className="bg-slate-900/10 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest w-fit">
+                  {result.data_freshness} ✓
+                </span>
+              </div>
               <span className="text-5xl filter drop-shadow-lg">🌾</span>
             </div>
             
@@ -229,11 +262,23 @@ const BechoYaRuko: React.FC = () => {
               </p>
             </div>
 
-            <p className="text-xl font-bold leading-relaxed mb-10 text-slate-800 italic">"{result.hindi_reason}"</p>
+            <p className="text-xl font-bold leading-relaxed mb-6 text-slate-800 italic">"{result.hindi_reason}"</p>
             
-            <div className="bg-black/5 p-6 rounded-[2rem] border border-black/5">
+            {result.stale_disclaimer && (
+              <p className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest mb-6 w-fit animate-pulse">
+                ⚠️ {result.stale_disclaimer}
+              </p>
+            )}
+
+            <div className="bg-black/5 p-6 rounded-[2rem] border border-black/5 mb-6">
               <p className="text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">{t('advisory.risk_label')}</p>
               <p className="text-base font-bold text-slate-700 leading-tight">{result.risk_note}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {result.mandis_checked?.map((m: string) => (
+                <span key={m} className="bg-white/40 px-3 py-1 rounded-lg text-[9px] font-bold text-slate-500 border border-white/20 uppercase">📍 {m}</span>
+              ))}
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 {
   "nav": {
     "mandi": "Mandi Prices",
+    "msp": "MSP Check",
     "advisory": "Sell / Hold",
     "weather": "Weather",
     "profile": "My Farm"
@@ -29,6 +30,12 @@
     "mp": "Madhya Pradesh",
     "last_updated": "Last Updated"
   },
+  "freshness": {
+    "today": "Today's Price ✓",
+    "yesterday": "Yesterday's Price",
+    "stale": "Old Price — {{days}} days ago",
+    "loading": "Loading data..."
+  },
   "advisory": {
     "title": "Sell or Hold?",
     "subtitle": "AI Data Analysis • The right decision at the right time",
@@ -55,6 +62,33 @@
     "risk_label": "⚠️ RISK NOTE",
     "share_whatsapp": "📱 Share on WhatsApp",
     "new_advisory": "🔄 New Suggestion"
+  },
+  "msp": {
+    "title": "MSP Bodyguard",
+    "subtitle": "Check if your price is fair",
+    "check_btn": "Check Now →",
+    "fair_price": "✅ Price Fair",
+    "low_price": "⛔ Price Low",
+    "loss_label": "Total Loss if sold now",
+    "details": "Details",
+    "msp_label": "Government MSP",
+    "offered_label": "Price Offered",
+    "total_value": "Total Value",
+    "recalculate": "🔄 Recalculate"
+  },
+  "forum": {
+    "title": "Kisan Chaupal",
+    "subtitle": "Connect with 10,000+ Farmers",
+    "form_crop": "Crop Name",
+    "form_price": "Price (₹)",
+    "form_message": "Your Update",
+    "form_placeholder": "What's happening in your mandi today?",
+    "form_submit": "Post to Community",
+    "loading": "Gathering Community Intelligence...",
+    "discussion": "Discussion",
+    "anonymous": "Anonymous Farmer",
+    "empty_title": "Chaupal is quiet",
+    "empty_hint": "Be the first to share a mandi update!"
   },
   "favorites": {
     "empty_title": "No Favorites Yet",

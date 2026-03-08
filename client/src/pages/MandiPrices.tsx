@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDistanceToNow } from 'date-fns';
-import { hi } from 'date-fns/locale';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Preferences } from '@capacitor/preferences';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip 
@@ -14,13 +12,14 @@ import { getEnglishCommodity } from '../constants/synonyms';
 import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
+import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
 
 const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
 };
 
 type FilterMode = 'all' | 'primary' | 'favorites';
@@ -48,7 +47,7 @@ const MandiPrices: React.FC = () => {
    * Fetch all records for the state once. All subsequent dropdown populations
    * are derived locally from this data to ensure 100% consistency.
    */
-  const { data: prices, isLoading, dataUpdatedAt } = useMandiPrices({
+  const { data: prices, isLoading } = useMandiPrices({
     state,
     limit: 10000, // Full state coverage in one hop
   });
@@ -205,70 +204,84 @@ const MandiPrices: React.FC = () => {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:px-8">
-        {dataUpdatedAt > 0 && !isLoading && (
-          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4 ml-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{t('common.last_updated')}: {formatDistanceToNow(dataUpdatedAt, { locale: i18n.language === 'hi' ? hi : undefined, addSuffix: true })}</span>
-          </div>
+        {!isLoading && prices && prices.length > 0 && (
+          <DataFreshnessBanner arrivalDate={prices[0].arrival_date} />
         )}
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <PriceCardSkeleton key={n} />)}
-          </div>
-        ) : displayedPrices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 text-center px-6">
-            <span className="text-6xl mb-4">🔍</span>
-            <h3 className="text-lg font-black text-slate-800 mb-2">{t('common.no_records')}</h3>
-            <p className="text-slate-400 text-sm max-w-xs">Try switching filters or searching for something else</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {displayedPrices.map((p, idx) => (
-              <PriceCard key={`${p.market}-${p.commodity}-${idx}`} record={p} unit={unit} isFavorite={favorites.includes(p.commodity)} onToggleFavorite={toggleFavorite} onViewTrends={(market, commodity) => setHistoryModal({market, commodity})} />
-            ))}
-          </div>
-        )}
+        <div className="min-h-[60vh]">
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <PriceCardSkeleton key={n} />)}
+            </div>
+          ) : displayedPrices.length === 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200 text-center px-6 shadow-sm">
+              <span className="text-6xl mb-6">{filterMode === 'favorites' ? '❤️' : '🔍'}</span>
+              <h3 className="text-xl font-black text-slate-800 mb-2">
+                {filterMode === 'favorites' ? t('favorites.empty_title') : t('common.no_records')}
+              </h3>
+              <p className="text-slate-400 font-bold text-sm max-w-xs leading-relaxed">
+                {filterMode === 'favorites' ? t('favorites.empty_hint') : 'कुछ और खोजें या फ़िल्टर बदलें'}
+              </p>
+              {filterMode === 'favorites' && (
+                <button onClick={() => setFilterMode('all')} className="mt-8 bg-primary text-white px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-95">
+                  {t('favorites.browse_all')}
+                </button>
+              )}
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {displayedPrices.map((p, idx) => (
+                <PriceCard key={`${p.market}-${p.commodity}-${idx}`} record={p} unit={unit} isFavorite={favorites.includes(p.commodity)} onToggleFavorite={toggleFavorite} onViewTrends={(market, commodity) => setHistoryModal({market, commodity})} />
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
-      {historyModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setHistoryModal(null)}>
-          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-2xl rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 leading-tight">{historyModal.commodity}</h2>
-                  <p className="text-slate-400 text-sm font-bold uppercase tracking-wide">📍 {historyModal.market}</p>
+      <AnimatePresence>
+        {historyModal && (
+          <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setHistoryModal(null)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 500 }} className="bg-white w-full max-w-2xl rounded-t-[2.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 md:hidden" />
+              <div className="p-8">
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 leading-tight uppercase italic tracking-tighter">{historyModal.commodity}</h2>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">📍 {historyModal.market}</p>
+                  </div>
+                  <button onClick={() => setHistoryModal(null)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all active:scale-90 font-bold text-xl shadow-sm">✕</button>
                 </div>
-                <button onClick={() => setHistoryModal(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+                <div className="h-72 w-full">
+                  {historyLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-4 bg-slate-50 rounded-3xl">
+                      <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.loading')}</p>
+                    </div>
+                  ) : historyData && historyData.length > 1 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={historyData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="arrival_date" hide />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <Tooltip 
+                          contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 900}} 
+                          itemStyle={{color: '#1B5E20'}}
+                        />
+                        <Line type="monotone" dataKey="modal_price" stroke="#1B5E20" strokeWidth={5} dot={{r: 5, fill: '#1B5E20', strokeWidth: 0}} activeDot={{r: 8, strokeWidth: 0}} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full bg-slate-50 rounded-3xl text-center p-8 border border-dashed border-slate-200">
+                      <span className="text-5xl mb-4">📈</span>
+                      <p className="text-slate-400 text-sm font-bold uppercase tracking-tight leading-relaxed">No historical data available for this market yet.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="h-64 w-full">
-                {historyLoading ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 bg-slate-50 rounded-xl">
-                    <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.loading')}</p>
-                  </div>
-                ) : historyData && historyData.length > 1 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={historyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="arrival_date" hide />
-                      <YAxis hide domain={['auto', 'auto']} />
-                      <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                      <Line type="monotone" dataKey="modal_price" stroke="#1B5E20" strokeWidth={4} dot={{r: 4, fill: '#1B5E20', strokeWidth: 0}} activeDot={{r: 6, strokeWidth: 0}} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full bg-slate-50 rounded-xl text-center p-6">
-                    <span className="text-4xl mb-2">📉</span>
-                    <p className="text-slate-400 text-sm font-bold uppercase tracking-tighter">No historical data available for this market yet.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

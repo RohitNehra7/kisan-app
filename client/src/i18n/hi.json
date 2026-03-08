@@ -1,6 +1,7 @@
 {
   "nav": {
     "mandi": "मंडी भाव",
+    "msp": "MSP सुरक्षा",
     "advisory": "बेचो / रुको",
     "weather": "मौसम",
     "profile": "मेरा खेत"
@@ -29,6 +30,12 @@
     "mp": "मध्य प्रदेश",
     "last_updated": "अंतिम अपडेट"
   },
+  "freshness": {
+    "today": "आज का भाव ✓",
+    "yesterday": "कल का भाव",
+    "stale": "पुराना भाव — {{days}} दिन पहले",
+    "loading": "भाव लोड हो रहा है..."
+  },
   "advisory": {
     "title": "बेचो या रुको?",
     "subtitle": "AI डाटा एनालिसिस • सही समय पर सही फैसला",
@@ -55,6 +62,33 @@
     "risk_label": "⚠️ जोखिम",
     "share_whatsapp": "📱 WhatsApp पर भेजो",
     "new_advisory": "🔄 नया सुझाव लो"
+  },
+  "msp": {
+    "title": "MSP सुरक्षा कवच",
+    "subtitle": "व्यापारी आपको ठग तो नहीं रहा?",
+    "check_btn": "जाँचें →",
+    "fair_price": "✅ भाव सही है",
+    "low_price": "⛔ भाव कम है",
+    "loss_label": "अभी बेचने पर कुल नुकसान",
+    "details": "विवरण",
+    "msp_label": "सरकारी MSP",
+    "offered_label": "मिला भाव",
+    "total_value": "कुल मूल्य",
+    "recalculate": "🔄 फिर से जाँचें"
+  },
+  "forum": {
+    "title": "किसान चौपाल",
+    "subtitle": "10,000+ किसानों से जुड़ें",
+    "form_crop": "फसल का नाम",
+    "form_price": "भाव (₹)",
+    "form_message": "आपकी जानकारी",
+    "form_placeholder": "आज आपकी मंडी में क्या चल रहा है?",
+    "form_submit": "चौपाल पर साझा करें",
+    "loading": "किसान चर्चा लोड हो रही है...",
+    "discussion": "चर्चा",
+    "anonymous": "अनाम किसान",
+    "empty_title": "चौपाल अभी शांत है",
+    "empty_hint": "मंडी की जानकारी साझा करने वाले पहले किसान बनें!"
   },
   "favorites": {
     "empty_title": "कोई पसंदीदा नहीं",
