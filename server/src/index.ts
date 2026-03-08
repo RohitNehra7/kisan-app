@@ -83,12 +83,19 @@ io.on('connection', (socket) => {
 });
 
 // 7. Background Services
-// Start Metadata Discovery on boot
+// Initial sync on boot
 MandiService.discoverAllMetadata();
+MandiService.syncAllMarketPrices();
 
-// Refresh directory every 12 hours
-nodeCron.schedule('0 */12 * * *', () => {
-  console.log('⏰ Running Scheduled Metadata Refresh...');
+// Schedule Price Sync: 12 AM and 12 PM
+nodeCron.schedule('0 0,12 * * *', () => {
+  console.log('⏰ [Cron] Starting Scheduled Price Sync (12h)...');
+  MandiService.syncAllMarketPrices();
+});
+
+// Schedule Metadata Refresh: Once a day at 3 AM
+nodeCron.schedule('0 3 * * *', () => {
+  console.log('⏰ [Cron] Running Daily Metadata Refresh...');
   MandiService.discoverAllMetadata();
 });
 

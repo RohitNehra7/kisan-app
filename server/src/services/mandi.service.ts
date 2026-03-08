@@ -5,6 +5,10 @@ import { ArbitrageResult, MandiRecord } from '../types';
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
 
+// Enterprise Sync Throttle: Prevents redundant DB writes within a 15-minute window
+const lastSyncMap = new Map<string, number>();
+const SYNC_COOLDOWN_MS = 15 * 60 * 1000; 
+
 export class MandiService {
   /**
    * Calculate Arbitrage (Net Profit) for a crop across major mandis
@@ -120,74 +124,104 @@ export class MandiService {
   }
 
   /**
-   * Fetch current prices from OGD API and sync to Supabase
+   * DATA WAREHOUSE SYNC (Background Only)
+   * Fetches latest prices for all active states and updates the local DB
    */
-  static async fetchAndSyncPrices(state?: string, commodity?: string, market?: string, limit: number = 1000): Promise<MandiRecord[]> {
+  static async syncAllMarketPrices(): Promise<void> {
     const apiKey = process.env.DATA_GOV_API_KEY;
-    if (!apiKey) throw new Error('DATA_GOV_API_KEY is not configured');
+    if (!apiKey) return;
 
-    const fetchFromGov = async (comm?: string, dateStr?: string): Promise<any[]> => {
-      try {
-        const params: any = { 
-          'api-key': apiKey, 
-          'format': 'json', 
-          'limit': limit,
-          'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
-        };
-        if (state) params['filters[state]'] = state;
-        if (comm) params['filters[commodity]'] = comm;
-        if (market) {
-          params['filters[market]'] = market;
-        }
-        if (dateStr) params['filters[arrival_date]'] = dateStr;
-        
-        let response = await axios.get(DATA_GOV_API_URL, { params });
-        let records = response.data.records || [];
-
-        if (records.length === 0 && market && !market.toUpperCase().endsWith('APMC')) {
-          params['filters[market]'] = `${market} APMC`;
-          response = await axios.get(DATA_GOV_API_URL, { params });
-          records = response.data.records || [];
-        }
-
-        return records;
-      } catch (e) {
-        console.error('Data.gov.in fetch error', e);
-        return [];
-      }
-    };
+    console.log('🔄 [Warehouse] Starting Global Price Sync...');
 
     try {
-      let rawRecords = await fetchFromGov(commodity);
+      const states = await this.getStates();
+      for (const state of states) {
+        console.log(`📡 [Warehouse] Syncing prices for ${state}...`);
 
-      if (rawRecords.length === 0) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yestStr = `${String(yesterday.getDate()).padStart(2, '0')}/${String(yesterday.getMonth() + 1).padStart(2, '0')}/${yesterday.getFullYear()}`;
-        rawRecords = await fetchFromGov(commodity, yestStr);
+        const response = await axios.get(DATA_GOV_API_URL, {
+          params: { 
+            'api-key': apiKey, 
+            'format': 'json', 
+            'limit': 1000,
+            'filters[state]': state,
+            'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
+          }
+        });
+
+        interface GovRecord {
+          state: string;
+          district: string;
+          market: string;
+          commodity: string;
+          variety: string;
+          arrival_date: string;
+          min_price: string;
+          max_price: string;
+          modal_price: string;
+          arrivals_in_qtl: string;
+        }
+
+        const records: GovRecord[] = response.data.records || [];
+        if (records.length === 0) continue;
+
+        const cleanedData: MandiRecord[] = records.map((r: GovRecord) => ({
+          state: r.state || "N/A",
+          district: r.district || "N/A",
+          market: r.market.replace(/ APMC$/i, '').trim(),
+          commodity: r.commodity || "N/A",
+          variety: r.variety || "N/A",
+          arrival_date: r.arrival_date || "N/A",
+          min_price: parseFloat(r.min_price) || 0,
+          max_price: parseFloat(r.max_price) || 0,
+          modal_price: parseFloat(r.modal_price) || 0,
+          arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
+        }));
+
+        if (supabase) {
+          const { error } = await supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' });
+          if (error) console.warn(`⚠️ [Warehouse] Sync error for ${state}:`, error.message);
+        }
+
+        await new Promise(res => setTimeout(res, 1000));
       }
+      console.log('✅ [Warehouse] Global Price Sync Complete!');
+    } catch (e: any) {
+      console.error('❌ [Warehouse] Sync failed:', e.message);
+    }
+  }
+  /**
+   * Serve Prices (From local DB only)
+   * This is what makes the app BLAZING FAST
+   */
+  static async getPricesFromDB(state: string, commodity?: string, market?: string): Promise<MandiRecord[]> {
+    try {
+      if (!supabase) throw new Error('DB not initialized');
 
-      const cleanedData: MandiRecord[] = rawRecords.map((r: any) => ({
-        state: r.state || "N/A",
-        district: r.district || "N/A",
-        market: r.market.replace(/ APMC$/i, '').trim(),
-        commodity: r.commodity || "N/A",
-        variety: r.variety || "N/A",
-        arrival_date: r.arrival_date || "N/A",
-        min_price: parseFloat(r.min_price) || 0,
-        max_price: parseFloat(r.max_price) || 0,
-        modal_price: parseFloat(r.modal_price) || 0,
-        arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
-      }));
+      let query = supabase
+        .from('prices')
+        .select('*')
+        .eq('state', state);
 
-      if (cleanedData.length > 0 && supabase) {
-        supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' })
-          .then(({ error }) => { if (error) console.warn('Supabase sync error', error.message); });
-      }
+      if (commodity && commodity !== 'all') query = query.eq('commodity', commodity);
+      if (market && market !== 'all') query = query.eq('market', market);
 
-      return cleanedData;
-    } catch (error) {
-      console.error('Mandi Service Fetch Error:', error);
+      const { data, error } = await query.order('arrival_date', { ascending: false });
+      if (error) throw error;
+
+      // 3. ENTEPRISE SORT & DEDUPLICATION:
+      const parseDate = (d: string) => {
+        const [day, month, year] = d.split('/').map(Number);
+        return new Date(year, month - 1, day).getTime();
+      };
+
+      const sorted = (data as MandiRecord[]).sort((a, b) => parseDate(b.arrival_date) - parseDate(a.arrival_date));
+
+      return Array.from(new Map(
+        sorted.map(item => [`${item.market}-${item.commodity}-${item.variety}`, item])
+      ).values());
+
+    } catch (e) {
+      console.error('DB Fetch Error:', e);
       return [];
     }
   }

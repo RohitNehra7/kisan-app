@@ -85,7 +85,7 @@ export class AdvisoryService {
   }
 
   private static async getMandiDataSummary(district: string, crop: string): Promise<MandiDataSummary> {
-    const records = await MandiService.fetchAndSyncPrices('Haryana', crop, undefined, 50);
+    const records = await MandiService.getPricesFromDB('Haryana', crop);
     const districtRecords = records.filter(r => r.district.toLowerCase().includes(district.toLowerCase()));
     
     if (districtRecords.length === 0) throw new Error('No mandi data for this district');
