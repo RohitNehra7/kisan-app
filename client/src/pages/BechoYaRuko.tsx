@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { captureEvent } from '../services/posthog';
 import { apiFetch } from '../services/api';
 import { HARYANA_PRIMARY_CROPS, TIER1_DISTRICTS } from '../constants/haryana.constants';
-import type { SellHoldRecommendation, SellHoldRequest } from '../types/api.types';
+import type { SellHoldRequest } from '../types/api.types';
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -15,7 +15,6 @@ const pageVariants = {
 };
 
 const NonTier1Message: React.FC<{ district: string }> = ({ district }) => {
-  const { t } = useTranslation();
   return (
     <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 text-center">
       <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">📍</div>

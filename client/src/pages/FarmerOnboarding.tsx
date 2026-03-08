@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../services/api';
@@ -12,7 +11,6 @@ const pageVariants = {
 };
 
 const FarmerOnboarding: React.FC = () => {
-  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     phone: '',
     name: '',

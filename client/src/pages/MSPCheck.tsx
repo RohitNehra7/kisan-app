@@ -48,7 +48,8 @@ const MSPCheck: React.FC = () => {
 
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
-    const mspValue = mspData.find(m => m.commodity === form.crop)?.msp_per_quintal || 2000;
+    const mspRecord = mspData.find(m => m.commodity === form.crop);
+    const mspValue = mspRecord?.msp_per_quintal || 2000;
     const qtyInQuintal = toQuintal(form.quantity, form.unit);
     const diff = form.priceOffered - mspValue;
     const totalAtMSP = qtyInQuintal * mspValue;
@@ -155,10 +156,10 @@ const MSPCheck: React.FC = () => {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`rounded-[3rem] p-10 shadow-2xl border-2 ${result.verdict === 'BELOW_MSP' ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}
+            className={`rounded-[3rem] p-6 md:p-10 shadow-2xl border-2 ${result.verdict === 'BELOW_MSP' ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}
           >
             <div className="flex justify-between items-start mb-6">
-              <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${result.verdict === 'BELOW_MSP' ? 'text-red-700' : 'text-emerald-700'}`}>
+              <h2 className={`text-2xl md:text-3xl font-black uppercase italic tracking-tighter ${result.verdict === 'BELOW_MSP' ? 'text-red-700' : 'text-emerald-700'}`}>
                 {result.verdict === 'BELOW_MSP' ? t('msp.low_price') : t('msp.fair_price')}
               </h2>
               <span className="text-4xl">{result.verdict === 'BELOW_MSP' ? '📉' : '💰'}</span>
@@ -176,27 +177,30 @@ const MSPCheck: React.FC = () => {
             )}
 
             <div className="overflow-hidden rounded-2xl border border-black/5 bg-white/50 backdrop-blur-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-black/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <th className="px-4 py-2 text-left">{t('msp.details')}</th>
-                    <th className="px-4 py-2 text-right">{t('msp.msp_label')}</th>
-                    <th className="px-4 py-2 text-right">{t('msp.offered_label')}</th>
-                  </tr>
-                </thead>
-                <tbody className="font-bold text-slate-700">
-                  <tr className="border-b border-black/5">
-                    <td className="px-4 py-3 text-xs">Price (₹/q)</td>
-                    <td className="px-4 py-3 text-right">₹{result.msp}</td>
-                    <td className="px-4 py-3 text-right">₹{result.priceOffered}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-xs text-primary uppercase">{t('msp.total_value')}</td>
-                    <td className="px-4 py-3 text-right">₹{Math.round(result.totalAtMSP).toLocaleString()}</td>
-                    <td className={`px-4 py-3 text-right ${result.verdict === 'BELOW_MSP' ? 'text-red-600' : 'text-emerald-600'}`}>₹{Math.round(result.totalOffered).toLocaleString()}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="flex flex-col">
+                {/* Header Row */}
+                <div className="grid grid-cols-3 gap-2 px-4 py-2 bg-black/5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                  <div>{t('msp.details')}</div>
+                  <div className="text-right">{t('msp.msp_label')}</div>
+                  <div className="text-right">{t('msp.offered_label')}</div>
+                </div>
+                
+                {/* Price Row */}
+                <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-black/5 items-center">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase leading-none">Price (₹/q)</div>
+                  <div className="text-right font-black text-slate-700 text-sm">₹{result.msp}</div>
+                  <div className="text-right font-black text-slate-900 text-sm">₹{result.priceOffered}</div>
+                </div>
+
+                {/* Total Row */}
+                <div className="grid grid-cols-3 gap-2 px-4 py-3 items-center">
+                  <div className="text-[10px] font-black text-primary uppercase leading-tight">{t('msp.total_value')}</div>
+                  <div className="text-right font-black text-slate-700 text-sm">₹{Math.round(result.totalAtMSP).toLocaleString()}</div>
+                  <div className={`text-right font-black text-sm ${result.verdict === 'BELOW_MSP' ? 'text-red-600' : 'text-emerald-600'}`}>
+                    ₹{Math.round(result.totalOffered).toLocaleString()}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <button 

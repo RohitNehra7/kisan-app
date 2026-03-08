@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDistanceToNow } from 'date-fns';
-import { hi } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Preferences } from '@capacitor/preferences';
 import { 
@@ -49,7 +47,7 @@ const MandiPrices: React.FC = () => {
    * Fetch all records for the state once. All subsequent dropdown populations
    * are derived locally from this data to ensure 100% consistency.
    */
-  const { data: prices, isLoading, dataUpdatedAt } = useMandiPrices({
+  const { data: prices, isLoading } = useMandiPrices({
     state,
     limit: 10000, // Full state coverage in one hop
   });
