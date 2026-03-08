@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../services/api';
+import { trackEvent } from '../services/analytics';
 import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS, HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
@@ -45,6 +46,7 @@ const FarmerOnboarding: React.FC = () => {
       }
     };
     loadProfile();
+    trackEvent('profile_view');
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,6 +61,7 @@ const FarmerOnboarding: React.FC = () => {
       if (data.success) {
         localStorage.setItem('farmer_phone', formData.phone);
         setSuccess(true);
+        trackEvent('profile_activated', { district: formData.district, crop: formData.main_crop });
       }
     } catch (err) {
       console.error(err);

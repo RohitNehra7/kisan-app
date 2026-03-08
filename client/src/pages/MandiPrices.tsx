@@ -9,6 +9,7 @@ import { useMandiPrices, useMandiHistory } from '../hooks/useMandiPrices';
 import { useDebouncedValue } from '../hooks/useDebouncedSearch';
 import { fetchStates } from '../services/mandi.service';
 import { getEnglishCommodity } from '../constants/synonyms';
+import { trackEvent } from '../services/analytics';
 import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
@@ -59,10 +60,10 @@ const MandiPrices: React.FC = () => {
     !!historyModal
   );
 
-  // 1. Initial Metadata Load (States only)
   useEffect(() => {
     fetchStates().then(data => { if (data.length > 0) setAvailableStates(data); });
-  }, []);
+    trackEvent('mandi_view', { district: state });
+  }, [state]);
 
   // 2. Localized Hierarchy Computation
   const availableMandis = useMemo(() => {

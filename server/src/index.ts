@@ -9,6 +9,7 @@ import advisoryRoutes from './routes/advisory.routes';
 import weatherRoutes from './routes/weather.routes';
 import forumRoutes from './routes/forum.routes';
 import { MandiService } from './services/mandi.service';
+import { MspService } from './services/msp.service';
 import { supabase } from './config/supabase';
 
 import { errorHandler } from './middleware/errorHandler';
@@ -44,13 +45,14 @@ app.use('/api/forum', forumRoutes);
 
 // 4. Diagnostics & Maintenance
 app.get('/api/diagnostics', async (req: Request, res: Response) => {
-  let stats = { prices: 0, directory: 0, msp: 0 };
+  let stats = { prices: 0, directory: 0, msp: 0, events: 0 };
   try {
     if (supabase) {
       const { count: pCount } = await supabase.from('prices').select('*', { count: 'exact', head: true });
       const { count: dCount } = await supabase.from('mandi_directory').select('*', { count: 'exact', head: true });
       const { count: mCount } = await supabase.from('msp_values').select('*', { count: 'exact', head: true });
-      stats = { prices: pCount || 0, directory: dCount || 0, msp: mCount || 0 };
+      const { count: eCount } = await supabase.from('app_events').select('*', { count: 'exact', head: true });
+      stats = { prices: pCount || 0, directory: dCount || 0, msp: mCount || 0, events: eCount || 0 };
     }
   } catch (e) {}
 
@@ -68,13 +70,26 @@ app.post('/api/admin/force-sync', async (req: Request, res: Response) => {
   console.log('⚡ Manual sync triggered via API');
   MandiService.discoverAllMetadata();
   MandiService.syncAllMarketPrices();
+  MspService.refreshMSP();
   res.json({ success: true, message: "Sync started in background" });
 });
 
-// 5. Error Handler
+// 5. Analytics Endpoint
+app.post('/api/events', async (req: Request, res: Response) => {
+  try {
+    if (supabase) {
+      await supabase.from('app_events').insert(req.body);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to log event" });
+  }
+});
+
+// 6. Error Handler
 app.use(errorHandler);
 
-// 6. Real-time Price Pulse (WebSockets)
+// 7. Real-time Price Pulse (WebSockets)
 const CROP_MODAL_BASICS: Record<string, number> = {
   "Wheat": 2350, "Paddy": 2280, "Mustard": 5920, "Bajra": 2580, "Cotton": 7150
 };
@@ -101,10 +116,11 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => console.log('📴 Client disconnected'));
 });
 
-// 7. Background Services
+// 8. Background Services
 // Initial sync on boot
 MandiService.discoverAllMetadata();
 MandiService.syncAllMarketPrices();
+MspService.refreshMSP();
 
 // Schedule Price Sync: 12 AM and 12 PM
 nodeCron.schedule('0 0,12 * * *', () => {
@@ -118,7 +134,13 @@ nodeCron.schedule('0 3 * * *', () => {
   MandiService.discoverAllMetadata();
 });
 
-// 8. Start Server
+// Schedule MSP Refresh: 1st of every month
+nodeCron.schedule('0 0 1 * *', () => {
+  console.log('⏰ [Cron] Running Monthly MSP Update...');
+  MspService.refreshMSP();
+});
+
+// 9. Start Server
 httpServer.listen(PORT, () => {
   console.log(`🚀 KisanNiti Enterprise Server (TS) running on port ${PORT}`);
 });
