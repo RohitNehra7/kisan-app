@@ -20,21 +20,21 @@ export class MandiService {
         "Wheat": 2350, "Paddy": 2300, "Mustard": 5950, "Bajra": 2600, "Cotton": 7100
       };
 
-      // 1. Fetch live prices for this crop in Haryana
-      const liveRecords = await this.fetchAndSyncPrices('Haryana', crop, undefined, 500);
+      // Use the Warehouse DB for speed and consistency
+      const liveRecords = await this.getPricesFromDB('Haryana', crop);
       
       const results: ArbitrageResult[] = targetDistricts.map(mandi => {
         const distance = GeoService.calculateDistance(userDistrict, mandi);
         
         // Find price: Live Match -> State Avg -> Mock Fallback
         let marketPrice = 0;
-        const exactMatch = liveRecords.find(r => r.district.toLowerCase() === mandi.toLowerCase());
+        const exactMatch = liveRecords.find((r: MandiRecord) => r.district.toLowerCase() === mandi.toLowerCase());
         
         if (exactMatch) {
           marketPrice = exactMatch.modal_price;
         } else if (liveRecords.length > 0) {
-          const avg = liveRecords.reduce((acc, r) => acc + r.modal_price, 0) / liveRecords.length;
-          marketPrice = avg + (Math.random() * 40 - 20); 
+          const sum = liveRecords.reduce((acc: number, r: MandiRecord) => acc + r.modal_price, 0);
+          marketPrice = (sum / liveRecords.length) + (Math.random() * 40 - 20); 
         } else {
           marketPrice = (basePrices[crop] || 2100) + (Math.random() * 60 - 30);
         }
@@ -189,6 +189,7 @@ export class MandiService {
       console.error('❌ [Warehouse] Sync failed:', e.message);
     }
   }
+
   /**
    * Serve Prices (From local DB only)
    * This is what makes the app BLAZING FAST
@@ -210,7 +211,10 @@ export class MandiService {
 
       // 3. ENTEPRISE SORT & DEDUPLICATION:
       const parseDate = (d: string) => {
-        const [day, month, year] = d.split('/').map(Number);
+        const parts = d.split('/');
+        const day = parseInt(parts[0] || '1') || 1;
+        const month = parseInt(parts[1] || '1') || 1;
+        const year = parseInt(parts[2] || '2026') || 2026;
         return new Date(year, month - 1, day).getTime();
       };
 
@@ -313,7 +317,7 @@ export class MandiService {
         .limit(7);
 
       if (error || !data || data.length === 0) return 0;
-      const sum = data.reduce((acc, r) => acc + (r.arrivals_in_qtl || 0), 0);
+      const sum = data.reduce((acc: number, r: any) => acc + (r.arrivals_in_qtl || 0), 0);
       return Math.round(sum / data.length);
     } catch (e) {
       return 0;
