@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../services/api';
+import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS, HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 const pageVariants = {
@@ -11,6 +13,7 @@ const pageVariants = {
 };
 
 const FarmerOnboarding: React.FC = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     phone: '',
     name: '',
@@ -90,6 +93,9 @@ const FarmerOnboarding: React.FC = () => {
       exit="exit"
       className="max-w-xl mx-auto px-4 py-8 pb-32"
     >
+      <SEO 
+        title={t('seo.profile_title')} 
+      />
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-black text-primary mb-1 uppercase tracking-tighter italic">प्रोफ़ाइल सेटअप</h1>

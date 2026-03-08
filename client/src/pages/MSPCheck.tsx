@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
+import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS } from '../constants/haryana.constants';
 
 interface MSPValue {
@@ -84,6 +85,10 @@ const MSPCheck: React.FC = () => {
       animate={{ opacity: 1 }} 
       className="max-w-xl mx-auto px-4 py-8 pb-32"
     >
+      <SEO 
+        title={t('seo.msp_title')} 
+        description={t('seo.msp_description')} 
+      />
       <div className="text-center mb-10">
         <h1 className="text-4xl font-black text-primary uppercase tracking-tighter italic leading-none mb-2">
           {t('msp.title')}

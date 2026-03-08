@@ -13,6 +13,7 @@ import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
 import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
+import SEO from '../components/common/SEO';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
 
@@ -149,6 +150,10 @@ const MandiPrices: React.FC = () => {
 
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col min-h-full">
+      <SEO 
+        title={t('seo.mandi_title')} 
+        description={t('seo.mandi_description')} 
+      />
       <div className="bg-white border-b border-slate-200 sticky top-14 md:top-16 z-30 px-4 py-3 md:px-8 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-col gap-3 md:gap-4">
           
