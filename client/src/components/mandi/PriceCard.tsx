@@ -79,7 +79,7 @@ const PriceCard: React.FC<PriceCardProps> = ({
   const freshnessColor = daysOld === 0 ? 'text-emerald-600 bg-emerald-50' : (daysOld === 1 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50');
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden group h-full">
+    <div ref={ref} className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden group h-full">
       {/* Freshness Badge */}
       <div className={`absolute top-0 right-0 px-3 py-1.5 rounded-bl-2xl text-[8px] font-black uppercase tracking-widest transition-colors ${freshnessColor}`}>
         {freshnessLabel}
