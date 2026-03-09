@@ -137,6 +137,18 @@ async function migrate() {
     );
   `);
 
+  // 9. Sync Logs (Reliability Heartbeat)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS sync_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      worker_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      records_synced INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Seed initial schemes
   await client.query(`
     INSERT INTO scheme_rules (scheme_name, scheme_hindi, benefit_hindi, eligibility_rules, payment_schedule, apply_url, documents_required) VALUES

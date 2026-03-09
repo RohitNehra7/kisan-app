@@ -9,6 +9,9 @@ export class MandiController {
       const { state, commodity, market } = req.query;
       if (!state) return res.status(400).json({ error: 'State is required' });
 
+      // Triple-Lock Heartbeat: Silently check sync health in background
+      MandiService.checkSyncHealthAndRecover();
+
       let data = await MandiService.getPricesFromDB(
         state as string, 
         commodity as string, 

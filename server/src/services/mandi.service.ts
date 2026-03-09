@@ -192,6 +192,7 @@ export class MandiService {
     if (!apiKey) return;
 
     console.log('🔄 [Warehouse] Starting Global Price Sync (Safe Mode)...');
+    let totalSynced = 0;
     
     try {
       // Prioritize primary states for the project
@@ -251,6 +252,7 @@ export class MandiService {
               if (supabase) {
                 const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
                 if (error) console.warn(`⚠️ [Warehouse] DB Error:`, error.message);
+                else totalSynced += uniqueBatch.length;
               }
             } else {
               console.log(`   ∟ Info: No records reported for ${dateStr}`);
@@ -269,9 +271,57 @@ export class MandiService {
         }
         console.log(`✅ [Warehouse] Finished ${state}. Latest Date: ${stateFreshestDate}`);
       }
+
+      // Log success heartbeat
+      if (supabase) {
+        await supabase.from('sync_logs').insert({ 
+          worker_name: 'price_sync', 
+          status: 'success', 
+          records_synced: totalSynced 
+        });
+      }
       console.log('✅ [Warehouse] Global Price Sync Complete!');
     } catch (e: any) {
       console.error('❌ [Warehouse] Sync loop failed:', e.message);
+      if (supabase) {
+        await supabase.from('sync_logs').insert({ 
+          worker_name: 'price_sync', 
+          status: 'error', 
+          error_message: e.message 
+        });
+      }
+    }
+  }
+
+  /**
+   * Triple-Lock Reliability: Automated Heartbeat Recovery
+   * Checks if the last sync was more than 12 hours ago and triggers a refresh if needed.
+   */
+  static async checkSyncHealthAndRecover(): Promise<void> {
+    try {
+      if (!supabase) return;
+
+      const { data, error } = await supabase
+        .from('sync_logs')
+        .select('created_at')
+        .eq('worker_name', 'price_sync')
+        .eq('status', 'success')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      const lastSync = data && data[0] ? new Date(data[0].created_at).getTime() : 0;
+      const now = Date.now();
+      const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+
+      if (now - lastSync > TWELVE_HOURS_MS) {
+        console.warn('🚨 [Heartbeat] Last sync is stale (>12h). Triggering recovery sync...');
+        // Run in background, don't await to keep user response fast
+        this.syncAllMarketPrices();
+      }
+    } catch (e) {
+      console.error('⚠️ [Heartbeat] Health check failed:', e);
     }
   }
 
@@ -319,14 +369,25 @@ export class MandiService {
    * Get all supported states from Directory
    */
   static async getStates(): Promise<string[]> {
+    const ALL_INDIAN_STATES = [
+      "Andaman and Nicobar", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", 
+      "Chandigarh", "Chattisgarh", "Dadra and Nagar Haveli", "Daman and Diu", "Delhi", 
+      "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", 
+      "Karnataka", "Kerala", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", 
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", 
+      "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+    ].sort();
+
     try {
-      if (!supabase) return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
+      if (!supabase) return ALL_INDIAN_STATES;
+      
       const { data, error } = await supabase.from('mandi_directory').select('state');
-      if (error) throw error;
+      if (error || !data || data.length === 0) return ALL_INDIAN_STATES;
+      
       const states = Array.from(new Set(data.map(d => d.state))).sort();
-      return states.length > 0 ? states : ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
+      return states.length > 0 ? states : ALL_INDIAN_STATES;
     } catch (e) {
-      return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
+      return ALL_INDIAN_STATES;
     }
   }
 
