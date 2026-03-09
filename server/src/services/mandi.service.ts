@@ -191,67 +191,87 @@ export class MandiService {
     const apiKey = process.env.DATA_GOV_API_KEY;
     if (!apiKey) return;
 
-    console.log('🔄 [Warehouse] Starting Global Price Sync...');
-
+    console.log('🔄 [Warehouse] Starting Global Price Sync (Safe Mode)...');
+    
     try {
-      const states = await this.getStates();
-      for (const state of states) {
-        console.log(`📡 [Warehouse] Syncing prices for ${state}...`);
+      // Prioritize primary states for the project
+      const primaryStates = ["Haryana", "Punjab"];
+      const otherStates = ["Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"];
+      
+      const datesToSync: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const ds = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        datesToSync.push(ds);
+      }
 
-        const response = await axios.get(DATA_GOV_API_URL, {
-          params: { 
-            'api-key': apiKey, 
-            'format': 'json', 
-            'limit': 1000,
-            'filters[state]': state,
-            'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
+      const allStates = [...primaryStates, ...otherStates];
+
+      for (const state of allStates) {
+        let stateFreshestDate = "None";
+        for (const dateStr of datesToSync) {
+          console.log(`📡 [Warehouse] Fetching ${state} | ${dateStr}...`);
+          
+          try {
+            const response = await axios.get(DATA_GOV_API_URL, {
+              params: { 
+                'api-key': apiKey, 
+                'format': 'json', 
+                'limit': 500, // Reduced limit for faster day-by-day sync
+                'filters[state]': state,
+                'filters[arrival_date]': dateStr,
+                'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
+              },
+              timeout: 15000
+            });
+
+            const records = response.data.records || [];
+            if (records.length > 0) {
+              stateFreshestDate = dateStr;
+              console.log(`   ∟ Success: Found ${records.length} records for ${dateStr}`);
+              
+              const cleanedData: MandiRecord[] = records.map((r: any) => ({
+                state: r.state || "N/A",
+                district: r.district || "N/A",
+                market: r.market.replace(/ APMC$/i, '').trim(),
+                commodity: r.commodity || "N/A",
+                variety: r.variety || "N/A",
+                arrival_date: r.arrival_date || "N/A",
+                min_price: parseFloat(r.min_price) || 0,
+                max_price: parseFloat(r.max_price) || 0,
+                modal_price: parseFloat(r.modal_price) || 0,
+                arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
+              }));
+
+              const uniqueBatch = Array.from(new Map(
+                cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
+              ).values());
+
+              if (supabase) {
+                const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
+                if (error) console.warn(`⚠️ [Warehouse] DB Error:`, error.message);
+              }
+            } else {
+              console.log(`   ∟ Info: No records reported for ${dateStr}`);
+            }
+          } catch (apiErr: any) {
+            if (apiErr.response?.status === 429) {
+              console.warn('⚠️ [Warehouse] Rate limit hit. Cooling down for 10 seconds...');
+              await new Promise(res => setTimeout(res, 10000));
+            } else {
+              console.error(`❌ [Warehouse] API Error for ${state}:`, apiErr.message);
+            }
           }
-        });
 
-        interface GovRecord {
-          state: string;
-          district: string;
-          market: string;
-          commodity: string;
-          variety: string;
-          arrival_date: string;
-          min_price: string;
-          max_price: string;
-          modal_price: string;
-          arrivals_in_qtl: string;
+          // Intentional delay to respect OGD rate limits
+          await new Promise(res => setTimeout(res, 2000));
         }
-
-        const records: GovRecord[] = response.data.records || [];
-        if (records.length === 0) continue;
-
-        const cleanedData: MandiRecord[] = records.map((r: GovRecord) => ({
-          state: r.state || "N/A",
-          district: r.district || "N/A",
-          market: r.market.replace(/ APMC$/i, '').trim(),
-          commodity: r.commodity || "N/A",
-          variety: r.variety || "N/A",
-          arrival_date: r.arrival_date || "N/A",
-          min_price: parseFloat(r.min_price) || 0,
-          max_price: parseFloat(r.max_price) || 0,
-          modal_price: parseFloat(r.modal_price) || 0,
-          arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
-        }));
-
-        // DEDUPLICATE within the batch to prevent Postgres conflict error
-        const uniqueBatch = Array.from(new Map(
-          cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
-        ).values());
-
-        if (supabase) {
-          const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
-          if (error) console.warn(`⚠️ [Warehouse] Sync error for ${state}:`, error.message);
-        }
-
-        await new Promise(res => setTimeout(res, 1000));
+        console.log(`✅ [Warehouse] Finished ${state}. Latest Date: ${stateFreshestDate}`);
       }
       console.log('✅ [Warehouse] Global Price Sync Complete!');
     } catch (e: any) {
-      console.error('❌ [Warehouse] Sync failed:', e.message);
+      console.error('❌ [Warehouse] Sync loop failed:', e.message);
     }
   }
 
