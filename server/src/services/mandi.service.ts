@@ -72,7 +72,7 @@ export class MandiService {
       return;
     }
 
-    console.log('🚀 Starting Autonomous Metadata Discovery...');
+    console.log('🚀 Starting Autonomous Metadata Discovery (Paginated)...');
     
     try {
       // 1. Get Total Count
@@ -84,33 +84,48 @@ export class MandiService {
       let offset = 0;
 
       while (offset < total) {
-        console.log(`🔄 Syncing offset ${offset}/${total}...`);
-        const resp = await axios.get(DATA_GOV_API_URL, {
-          params: { 'api-key': apiKey, format: 'json', limit: chunkSize, offset }
-        });
+        console.log(`🔄 [Discovery] Processing offset ${offset}/${total}...`);
         
-        const records = resp.data.records || [];
-        if (records.length === 0) break;
+        try {
+          const resp = await axios.get(DATA_GOV_API_URL, {
+            params: { 'api-key': apiKey, format: 'json', limit: chunkSize, offset }
+          });
+          
+          const records = resp.data.records || [];
+          if (records.length === 0) break;
 
-        // Extract and Clean
-        const mandis = records.map((r: any) => ({
-          state: r.state,
-          market: r.market.replace(/ APMC$/i, '').trim(),
-          district: r.district
-        }));
+          // Extract and Clean
+          const mandis = records.map((r: any) => ({
+            state: r.state,
+            market: r.market.replace(/ APMC$/i, '').trim(),
+            district: r.district
+          }));
 
-        const crops = Array.from(new Set(records.map((r: any) => r.commodity))).map(c => ({ commodity: c }));
+          const crops = Array.from(new Set(records.map((r: any) => r.commodity))).map(c => ({ commodity: c }));
 
-        // Batch Upsert Mandis
-        const uniqueMandis = Array.from(new Map(mandis.map((m: any) => [`${m.state}-${m.market}`, m])).values());
-        await supabase.from('mandi_directory').upsert(uniqueMandis, { onConflict: 'state,market' });
+          // Batch Upsert Mandis
+          const uniqueMandis = Array.from(new Map(mandis.map((m: any) => [`${m.state}-${m.market}`, m])).values());
+          const { error: mErr } = await supabase.from('mandi_directory').upsert(uniqueMandis, { onConflict: 'state,market' });
+          if (mErr) console.warn('⚠️ [Discovery] Mandi Upsert Warn:', mErr.message);
 
-        // Batch Upsert Crops
-        await supabase.from('commodity_directory').upsert(crops, { onConflict: 'commodity' });
+          // Batch Upsert Crops
+          const { error: cErr } = await supabase.from('commodity_directory').upsert(crops, { onConflict: 'commodity' });
+          if (cErr) console.warn('⚠️ [Discovery] Crop Upsert Warn:', cErr.message);
 
-        offset += chunkSize;
-        // Small delay to prevent API throttling
-        await new Promise(res => setTimeout(res, 500));
+          offset += chunkSize;
+        } catch (apiErr: any) {
+          if (apiErr.response?.status === 429) {
+            console.warn('⚠️ [Discovery] Rate limited. Waiting 10s...');
+            await new Promise(res => setTimeout(res, 10000));
+            continue; // Retry same offset
+          } else {
+            console.error('❌ [Discovery] Chunk failed:', apiErr.message);
+            break; 
+          }
+        }
+        
+        // Prevent API throttling
+        await new Promise(res => setTimeout(res, 2000));
       }
 
       console.log('✅ Metadata Discovery Complete!');
