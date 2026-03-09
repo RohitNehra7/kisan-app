@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { supabase } from '../config/supabase';
 import { GeoService } from './geo.service';
+import { PROJECT_CONFIG } from '../config/project.config';
 import { ArbitrageResult, MandiRecord } from '../types';
 
 const DATA_GOV_API_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
@@ -11,15 +12,13 @@ export class MandiService {
    */
   static async calculateArbitrage(crop: string, quantity: number, userDistrict: string, transportRate: number): Promise<ArbitrageResult[]> {
     try {
-      const targetDistricts = ["Karnal", "Hisar", "Rohtak", "Sirsa", "Ambala", "Kaithal", "Panipat", "Rewari"];
-      const basePrices: Record<string, number> = {
-        "Wheat": 2350, "Paddy": 2300, "Mustard": 5950, "Bajra": 2600, "Cotton": 7100
-      };
+      const targetDistricts = PROJECT_CONFIG.ARBITRAGE_TARGET_DISTRICTS;
+      const basePrices: Record<string, number> = PROJECT_CONFIG.FALLBACK_MODAL_PRICES;
 
       // Use the Warehouse DB for speed and consistency
       const liveRecords = await this.getPricesFromDB('Haryana', crop);
       
-      const results: ArbitrageResult[] = targetDistricts.map(mandi => {
+      const results: ArbitrageResult[] = targetDistricts.map((mandi: string) => {
         const distance = GeoService.calculateDistance(userDistrict, mandi);
         
         // Find price: Live Match -> State Avg -> Mock Fallback
@@ -32,7 +31,7 @@ export class MandiService {
           const sum = liveRecords.reduce((acc: number, r: MandiRecord) => acc + r.modal_price, 0);
           marketPrice = (sum / liveRecords.length) + (Math.random() * 40 - 20); 
         } else {
-          marketPrice = (basePrices[crop] || 2100) + (Math.random() * 60 - 30);
+          marketPrice = (basePrices[crop] || basePrices["Default"] || 2100) + (Math.random() * 60 - 30);
         }
 
         const grossTotal = marketPrice * quantity;
@@ -72,7 +71,7 @@ export class MandiService {
       return;
     }
 
-    console.log('🚀 Starting Autonomous Metadata Discovery...');
+    console.log('🚀 Starting Autonomous Metadata Discovery (Paginated)...');
     
     try {
       // 1. Get Total Count
@@ -84,33 +83,48 @@ export class MandiService {
       let offset = 0;
 
       while (offset < total) {
-        console.log(`🔄 Syncing offset ${offset}/${total}...`);
-        const resp = await axios.get(DATA_GOV_API_URL, {
-          params: { 'api-key': apiKey, format: 'json', limit: chunkSize, offset }
-        });
+        console.log(`🔄 [Discovery] Processing offset ${offset}/${total}...`);
         
-        const records = resp.data.records || [];
-        if (records.length === 0) break;
+        try {
+          const resp = await axios.get(DATA_GOV_API_URL, {
+            params: { 'api-key': apiKey, format: 'json', limit: chunkSize, offset }
+          });
+          
+          const records = resp.data.records || [];
+          if (records.length === 0) break;
 
-        // Extract and Clean
-        const mandis = records.map((r: any) => ({
-          state: r.state,
-          market: r.market.replace(/ APMC$/i, '').trim(),
-          district: r.district
-        }));
+          // Extract and Clean
+          const mandis = records.map((r: any) => ({
+            state: r.state,
+            market: r.market.replace(/ APMC$/i, '').trim(),
+            district: r.district
+          }));
 
-        const crops = Array.from(new Set(records.map((r: any) => r.commodity))).map(c => ({ commodity: c }));
+          const crops = Array.from(new Set(records.map((r: any) => r.commodity))).map(c => ({ commodity: c }));
 
-        // Batch Upsert Mandis
-        const uniqueMandis = Array.from(new Map(mandis.map((m: any) => [`${m.state}-${m.market}`, m])).values());
-        await supabase.from('mandi_directory').upsert(uniqueMandis, { onConflict: 'state,market' });
+          // Batch Upsert Mandis
+          const uniqueMandis = Array.from(new Map(mandis.map((m: any) => [`${m.state}-${m.market}`, m])).values());
+          const { error: mErr } = await supabase.from('mandi_directory').upsert(uniqueMandis, { onConflict: 'state,market' });
+          if (mErr) console.warn('⚠️ [Discovery] Mandi Upsert Warn:', mErr.message);
 
-        // Batch Upsert Crops
-        await supabase.from('commodity_directory').upsert(crops, { onConflict: 'commodity' });
+          // Batch Upsert Crops
+          const { error: cErr } = await supabase.from('commodity_directory').upsert(crops, { onConflict: 'commodity' });
+          if (cErr) console.warn('⚠️ [Discovery] Crop Upsert Warn:', cErr.message);
 
-        offset += chunkSize;
-        // Small delay to prevent API throttling
-        await new Promise(res => setTimeout(res, 500));
+          offset += chunkSize;
+        } catch (apiErr: any) {
+          if (apiErr.response?.status === 429) {
+            console.warn('⚠️ [Discovery] Rate limited. Waiting 10s...');
+            await new Promise(res => setTimeout(res, 10000));
+            continue; // Retry same offset
+          } else {
+            console.error('❌ [Discovery] Chunk failed:', apiErr.message);
+            break; 
+          }
+        }
+        
+        // Prevent API throttling
+        await new Promise(res => setTimeout(res, 2000));
       }
 
       console.log('✅ Metadata Discovery Complete!');
@@ -191,67 +205,141 @@ export class MandiService {
     const apiKey = process.env.DATA_GOV_API_KEY;
     if (!apiKey) return;
 
-    console.log('🔄 [Warehouse] Starting Global Price Sync...');
-
+    console.log('🔄 [Warehouse] Starting Global Price Sync (Safe Mode)...');
+    let totalSynced = 0;
+    
     try {
-      const states = await this.getStates();
-      for (const state of states) {
-        console.log(`📡 [Warehouse] Syncing prices for ${state}...`);
+      // 1. DYNAMIC STATE DISCOVERY: Fetch all states from our directory
+      const allDiscoveredStates = await this.getStates();
+      
+      // 2. BUSINESS PRIORITY: Ensure our Tier 1 states are processed first
+      const priorityStates = PROJECT_CONFIG.PRIORITY_STATES;
+      const sortedStates = [
+        ...priorityStates.filter(s => allDiscoveredStates.includes(s)),
+        ...allDiscoveredStates.filter(s => !priorityStates.includes(s))
+      ];
+      
+      const datesToSync: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const ds = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        datesToSync.push(ds);
+      }
 
-        const response = await axios.get(DATA_GOV_API_URL, {
-          params: { 
-            'api-key': apiKey, 
-            'format': 'json', 
-            'limit': 1000,
-            'filters[state]': state,
-            'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
+      for (const state of sortedStates) {
+        let stateFreshestDate = "None";
+        for (const dateStr of datesToSync) {
+          console.log(`📡 [Warehouse] Fetching ${state} | ${dateStr}...`);
+          
+          try {
+            const response = await axios.get(DATA_GOV_API_URL, {
+              params: { 
+                'api-key': apiKey, 
+                'format': 'json', 
+                'limit': 500, // Reduced limit for faster day-by-day sync
+                'filters[state]': state,
+                'filters[arrival_date]': dateStr,
+                'fields': 'state,district,market,commodity,variety,arrival_date,min_price,max_price,modal_price,arrivals_in_qtl'
+              },
+              timeout: 15000
+            });
+
+            const records = response.data.records || [];
+            if (records.length > 0) {
+              stateFreshestDate = dateStr;
+              console.log(`   ∟ Success: Found ${records.length} records for ${dateStr}`);
+              
+              const cleanedData: MandiRecord[] = records.map((r: any) => ({
+                state: r.state || "N/A",
+                district: r.district || "N/A",
+                market: r.market.replace(/ APMC$/i, '').trim(),
+                commodity: r.commodity || "N/A",
+                variety: r.variety || "N/A",
+                arrival_date: r.arrival_date || "N/A",
+                min_price: parseFloat(r.min_price) || 0,
+                max_price: parseFloat(r.max_price) || 0,
+                modal_price: parseFloat(r.modal_price) || 0,
+                arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
+              }));
+
+              const uniqueBatch = Array.from(new Map(
+                cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
+              ).values());
+
+              if (supabase) {
+                const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
+                if (error) console.warn(`⚠️ [Warehouse] DB Error:`, error.message);
+                else totalSynced += uniqueBatch.length;
+              }
+            } else {
+              console.log(`   ∟ Info: No records reported for ${dateStr}`);
+            }
+          } catch (apiErr: any) {
+            if (apiErr.response?.status === 429) {
+              console.warn('⚠️ [Warehouse] Rate limit hit. Cooling down for 10 seconds...');
+              await new Promise(res => setTimeout(res, 10000));
+            } else {
+              console.error(`❌ [Warehouse] API Error for ${state}:`, apiErr.message);
+            }
           }
+
+          // Intentional delay to respect OGD rate limits
+          await new Promise(res => setTimeout(res, 2000));
+        }
+        console.log(`✅ [Warehouse] Finished ${state}. Latest Date: ${stateFreshestDate}`);
+      }
+
+      // Log success heartbeat
+      if (supabase) {
+        await supabase.from('sync_logs').insert({ 
+          worker_name: 'price_sync', 
+          status: 'success', 
+          records_synced: totalSynced 
         });
-
-        interface GovRecord {
-          state: string;
-          district: string;
-          market: string;
-          commodity: string;
-          variety: string;
-          arrival_date: string;
-          min_price: string;
-          max_price: string;
-          modal_price: string;
-          arrivals_in_qtl: string;
-        }
-
-        const records: GovRecord[] = response.data.records || [];
-        if (records.length === 0) continue;
-
-        const cleanedData: MandiRecord[] = records.map((r: GovRecord) => ({
-          state: r.state || "N/A",
-          district: r.district || "N/A",
-          market: r.market.replace(/ APMC$/i, '').trim(),
-          commodity: r.commodity || "N/A",
-          variety: r.variety || "N/A",
-          arrival_date: r.arrival_date || "N/A",
-          min_price: parseFloat(r.min_price) || 0,
-          max_price: parseFloat(r.max_price) || 0,
-          modal_price: parseFloat(r.modal_price) || 0,
-          arrivals_in_qtl: r.arrivals_in_qtl === 'NA' ? 0 : (parseFloat(r.arrivals_in_qtl) || 0)
-        }));
-
-        // DEDUPLICATE within the batch to prevent Postgres conflict error
-        const uniqueBatch = Array.from(new Map(
-          cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
-        ).values());
-
-        if (supabase) {
-          const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
-          if (error) console.warn(`⚠️ [Warehouse] Sync error for ${state}:`, error.message);
-        }
-
-        await new Promise(res => setTimeout(res, 1000));
       }
       console.log('✅ [Warehouse] Global Price Sync Complete!');
     } catch (e: any) {
-      console.error('❌ [Warehouse] Sync failed:', e.message);
+      console.error('❌ [Warehouse] Sync loop failed:', e.message);
+      if (supabase) {
+        await supabase.from('sync_logs').insert({ 
+          worker_name: 'price_sync', 
+          status: 'error', 
+          error_message: e.message 
+        });
+      }
+    }
+  }
+
+  /**
+   * Triple-Lock Reliability: Automated Heartbeat Recovery
+   * Checks if the last sync was more than 12 hours ago and triggers a refresh if needed.
+   */
+  static async checkSyncHealthAndRecover(): Promise<void> {
+    try {
+      if (!supabase) return;
+
+      const { data, error } = await supabase
+        .from('sync_logs')
+        .select('created_at')
+        .eq('worker_name', 'price_sync')
+        .eq('status', 'success')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      const lastSync = data && data[0] ? new Date(data[0].created_at).getTime() : 0;
+      const now = Date.now();
+      const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+
+      if (now - lastSync > TWELVE_HOURS_MS) {
+        console.warn('🚨 [Heartbeat] Last sync is stale (>12h). Triggering recovery sync...');
+        // Run in background, don't await to keep user response fast
+        this.syncAllMarketPrices();
+      }
+    } catch (e) {
+      console.error('⚠️ [Heartbeat] Health check failed:', e);
     }
   }
 
@@ -297,16 +385,29 @@ export class MandiService {
 
   /**
    * Get all supported states from Directory
+   * Only returns states that have registered mandis in our database.
    */
   static async getStates(): Promise<string[]> {
+    const FALLBACK_STATES = ["Haryana", "Punjab"];
+
     try {
-      if (!supabase) return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
-      const { data, error } = await supabase.from('mandi_directory').select('state');
+      if (!supabase) return FALLBACK_STATES;
+      
+      const { data, error } = await supabase
+        .from('mandi_directory')
+        .select('state');
+        
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        return FALLBACK_STATES;
+      }
+      
       const states = Array.from(new Set(data.map(d => d.state))).sort();
-      return states.length > 0 ? states : ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
+      return states;
     } catch (e) {
-      return ["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh", "Gujarat", "Maharashtra"].sort();
+      console.error('⚠️ [MandiService] Failed to fetch states from DB:', e);
+      return FALLBACK_STATES;
     }
   }
 
