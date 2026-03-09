@@ -1,6 +1,5 @@
 # KisanNiti — Phase 1 Implementation Details
-
-This document outlines the technical improvements and new features implemented during Phase 1.
+**Status:** Completed ✅ | **Date:** March 2026
 
 ## 🛠️ Technical Improvements
 
@@ -15,9 +14,18 @@ This document outlines the technical improvements and new features implemented d
   - Added `--legacy-peer-deps` to all `npm install` commands in Dockerfiles to match the local development environment.
   - Verified local build with `$env:CI="true"; npm run build` before pushing.
 
-### 3. Data Integrity & Sync Optimization
-- **Problem**: The background sync was reporting Postgres conflict errors: `ON CONFLICT DO UPDATE command cannot affect row a second time`.
-- **Solution**: Implemented **In-Memory Deduplication** in the `MandiService` batch processor. Before sending records to Supabase, we now filter the array to ensure only the most unique/recent record for a specific Mandi+Crop+Variety+Date combination is upserted.
+### 3. Triple-Lock Data Reliability Engine
+- **Problem**: Reliance on standard cron jobs was risky for a real-time financial tool. Production data also lacked all-India state coverage.
+- **Solution**:
+  - **Lock 1 (Scheduled)**: 12-hour background sync for prices.
+  - **Lock 2 (Self-Healing Discovery)**: Paginated metadata scanner that discovers every Mandi/Crop in India without hitting rate limits.
+  - **Lock 3 (Heartbeat Recovery)**: A sync telemetry system that triggers a recovery refresh if data is detected to be >12h old.
+  - **Fallback**: Added all 36 Indian States/UTs to the primary fallback list to ensure production/local parity.
+
+### 4. Performance Optimization: Sparkline Lazy-Loading
+- **Problem**: Adding 7-day sparklines to every Mandi card triggered 100+ simultaneous API calls on page load, causing 429 (Too Many Requests) errors and significant UI lag.
+- **Solution**: Implemented **Intersection Observer** (via `react-intersection-observer`). Sparkline data is now only fetched when a card actually enters the user's viewport.
+- **Result**: Initial page load now triggers **Zero** history calls. Data is fetched smoothly as the user scrolls, protecting the backend and ensuring a fluid 60fps experience.
 
 ## 🌟 New Features
 
@@ -40,10 +48,6 @@ This document outlines the technical improvements and new features implemented d
 - **Metrics**: Captures `page_view`, `advisory_requested`, `profile_activated`, and `scheme_checked` events.
 - **Persistence**: All events are logged to the `app_events` table in Supabase for DAU calculation.
 
-### 4. Performance Optimization: Sparkline Lazy-Loading
-- **Problem**: Adding 7-day sparklines to every Mandi card triggered 100+ simultaneous API calls on page load, causing 429 (Too Many Requests) errors and significant UI lag.
-- **Solution**: Implemented **Intersection Observer** (via `react-intersection-observer`). Sparkline data is now only fetched when a card actually enters the user's viewport.
-- **Result**: Initial page load now triggers **Zero** history calls. Data is fetched smoothly as the user scrolls, protecting the backend and ensuring a fluid 60fps experience.
-
 ---
 *Verified and Built by Gemini CLI Staff Engineering Agent.*
+
