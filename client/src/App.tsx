@@ -14,6 +14,7 @@ import { FEATURES } from './config/features';
 const MandiPrices = lazy(() => import('./pages/MandiPrices'));
 const BechoYaRuko = lazy(() => import('./pages/BechoYaRuko'));
 const MSPCheck = lazy(() => import('./pages/MSPCheck'));
+const SchemeChecker = lazy(() => import('./pages/SchemeChecker'));
 const FarmerOnboarding = lazy(() => import('./pages/FarmerOnboarding'));
 const Weather = lazy(() => import('./pages/Weather'));
 
@@ -67,6 +68,7 @@ const AppContent: React.FC = () => {
   const navTabs = [
     { path: '/', label: t('nav.mandi'), icon: '🌾' },
     { path: '/msp-check', label: t('nav.msp'), icon: '💰' },
+    { path: '/schemes', label: i18n.language === 'hi' ? 'योजनाएं' : 'Schemes', icon: '🏛️' },
     ...(FEATURES.enableAdvisoryEngine ? [{ path: '/advisory', label: t('nav.advisory'), icon: '🤖' }] : []),
     { path: '/weather', label: t('nav.weather'), icon: '⛅' },
     { path: '/profile', label: t('nav.profile'), icon: '🚜' },
@@ -123,6 +125,7 @@ const AppContent: React.FC = () => {
             <Routes location={location} key={location.pathname}>
               <Route path="/" element={<MandiPrices />} />
               <Route path="/msp-check" element={<MSPCheck />} />
+              <Route path="/schemes" element={<SchemeChecker />} />
               {FEATURES.enableAdvisoryEngine && <Route path="/advisory" element={<BechoYaRuko />} />}
               <Route path="/profile" element={<FarmerOnboarding />} />
               <Route path="/weather" element={<Weather />} />

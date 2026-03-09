@@ -11,7 +11,7 @@ interface SEOProps {
   ogType?: string;
 }
 
-const SEO: React.FC<SEOProps> = ({ 
+const KisanSeo: React.FC<SEOProps> = ({ 
   title, 
   description, 
   keywords, 
@@ -61,4 +61,4 @@ const SEO: React.FC<SEOProps> = ({
   );
 };
 
-export default SEO;
+export default KisanSeo;

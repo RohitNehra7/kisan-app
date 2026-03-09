@@ -5,7 +5,7 @@ WORKDIR /usr/src/app
 
 # 1. Install Dependencies
 COPY server/package*.json ./server/
-RUN cd server && npm install
+RUN cd server && npm install --legacy-peer-deps
 
 # 2. Copy Source and Build
 COPY server/ ./server/

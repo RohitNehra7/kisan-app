@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../services/api';
+import { trackEvent } from '../services/analytics';
+import SEO from '../components/common/KisanSeo';
 
 interface Post {
   id: string;
@@ -23,6 +25,7 @@ const FarmerForum: React.FC = () => {
 
   useEffect(() => {
     fetchPosts();
+    trackEvent('forum_view');
   }, []);
 
   const fetchPosts = async () => {
@@ -58,6 +61,7 @@ const FarmerForum: React.FC = () => {
         setPosts([result.data, ...posts]);
         setNewPost({ crop: 'Wheat', price: '', message: '' });
         setShowAdd(false);
+        trackEvent('forum_post_created', { crop: newPost.crop });
       }
     } catch (err) {
       console.error('Failed to post update:', err);
@@ -68,6 +72,7 @@ const FarmerForum: React.FC = () => {
     try {
       await apiFetch(`/api/forum/posts/${postId}/like`, { method: 'POST' });
       setPosts(posts.map(p => p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p));
+      trackEvent('forum_post_liked');
     } catch (err) {
       console.error('Failed to like post');
     }

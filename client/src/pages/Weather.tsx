@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../services/api';
-import SEO from '../components/common/SEO';
+import { trackEvent } from '../services/analytics';
+import SEO from '../components/common/KisanSeo';
 import { HARYANA_DISTRICTS } from '../constants/haryana.constants';
 
 interface ForecastItem {
@@ -68,6 +69,7 @@ const Weather: React.FC = () => {
       if (data.success) {
         setWeather(data);
         if (data.district && !lat) setSelectedDistrict(data.district);
+        trackEvent('weather_view', { district: data.district });
       }
     } catch (err) {
       console.error(err);

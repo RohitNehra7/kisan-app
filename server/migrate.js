@@ -108,7 +108,60 @@ async function migrate() {
     );
   `);
 
-  // Seed MSP values
+  // 7. Analytics Tracking
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      event_type TEXT NOT NULL,
+      district TEXT,
+      crop TEXT,
+      session_id TEXT,
+      platform TEXT DEFAULT 'web',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // 8. Scheme Rules Engine
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS scheme_rules (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      scheme_name TEXT NOT NULL,
+      scheme_hindi TEXT NOT NULL,
+      benefit_hindi TEXT NOT NULL,
+      eligibility_rules JSONB NOT NULL,
+      payment_schedule TEXT,
+      apply_url TEXT,
+      documents_required TEXT[],
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Seed initial schemes
+  await client.query(`
+    INSERT INTO scheme_rules (scheme_name, scheme_hindi, benefit_hindi, eligibility_rules, payment_schedule, apply_url, documents_required) VALUES
+    (
+      'PM-KISAN',
+      'PM किसान सम्मान निधि',
+      '₹6,000 प्रति वर्ष — ₹2,000 की तीन किस्तें',
+      '{"min_land": 0, "requires_aadhaar": true, "requires_bank": true}',
+      'हर 4 महीने में ₹2,000',
+      'https://pmkisan.gov.in',
+      ARRAY['आधार कार्ड', 'बैंक पासबुक', 'जमीन की फर्द']
+    ),
+    (
+      'KCC',
+      'किसान क्रेडिट कार्ड (KCC)',
+      'खेती के लिए कम ब्याज पर लोन',
+      '{"requires_land": true}',
+      'फसल बेचने के बाद आसान भुगतान',
+      'https://www.nabard.org',
+      ARRAY['आधार कार्ड', 'जमीन के कागजात', 'बैंक पासबुक']
+    )
+    ON CONFLICT DO NOTHING;
+  `);
+
+  console.log("Migration and Seeding complete");
   await client.query(`
     INSERT INTO msp_values (commodity, season, year, msp_per_quintal, announced_date) VALUES
     ('Wheat',     'Rabi',   '2025-26', 2425, '2025-10-01'),
