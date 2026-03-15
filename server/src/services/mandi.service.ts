@@ -385,13 +385,11 @@ export class MandiService {
 
   /**
    * Get all supported states from Directory
-   * Only returns states that have registered mandis in our database.
+   * Returns all states that we have discovered mandis for.
    */
   static async getStates(): Promise<string[]> {
-    const FALLBACK_STATES = ["Haryana", "Punjab"];
-
     try {
-      if (!supabase) return FALLBACK_STATES;
+      if (!supabase) return ["Haryana", "Punjab"];
       
       const { data, error } = await supabase
         .from('mandi_directory')
@@ -400,14 +398,15 @@ export class MandiService {
       if (error) throw error;
       
       if (!data || data.length === 0) {
-        return FALLBACK_STATES;
+        return ["Haryana", "Punjab"];
       }
       
+      // Return every state present in our Mandi Directory
       const states = Array.from(new Set(data.map(d => d.state))).sort();
       return states;
     } catch (e) {
-      console.error('⚠️ [MandiService] Failed to fetch states from DB:', e);
-      return FALLBACK_STATES;
+      console.error('⚠️ [MandiService] Failed to fetch states from Directory:', e);
+      return ["Haryana", "Punjab"];
     }
   }
 

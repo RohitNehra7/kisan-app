@@ -40,7 +40,7 @@ const MandiPrices: React.FC = () => {
   const [historyModal, setHistoryModal] = useState<{market: string, commodity: string} | null>(null);
   
   // Metadata for States (Discovered once)
-  const [availableStates, setAvailableStates] = useState<string[]>(["Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Madhya Pradesh"]);
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
 
   const debouncedSearch = useDebouncedValue(commodity, 500);
 
@@ -60,8 +60,22 @@ const MandiPrices: React.FC = () => {
     !!historyModal
   );
 
+  // 1. Initial Metadata Load (States only)
   useEffect(() => {
-    fetchStates().then(data => { if (data.length > 0) setAvailableStates(data); });
+    const init = async () => {
+      try {
+        const data = await fetchStates();
+        if (data && data.length > 0) {
+          setAvailableStates(data);
+          // If current selected state is not in available, pick first one
+          if (!state && data.includes('Haryana')) setState('Haryana');
+          else if (!state) setState(data[0]);
+        }
+      } catch (e) {
+        console.error('Failed to load states');
+      }
+    };
+    init();
     trackEvent('mandi_view', { district: state });
   }, [state]);
 
