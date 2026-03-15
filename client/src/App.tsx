@@ -49,14 +49,20 @@ const AppContent: React.FC = () => {
         }
 
         PushNotifications.addListener('registration', async (token) => {
-          const { value: phone } = await Preferences.get({ key: 'user_phone' });
-          if (phone) {
-            await fetch('/api/farmer-profile/push-token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone, push_token: token.value })
-            });
-          }
+          console.log('Push registration success, token: ' + token.value);
+          const { value: sessionId } = await Preferences.get({ key: 'user_session_id' });
+          const { value: profileStr } = await Preferences.get({ key: 'farmer_profile' });
+          const profile = profileStr ? JSON.parse(profileStr) : null;
+
+          await apiFetch('/api/notifications/register', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              fcm_token: token.value, 
+              session_id: sessionId || 'browser-session',
+              district: profile?.district,
+              crop: profile?.main_crop
+            })
+          });
         });
       } catch (e) {
         console.warn('Push registration failed - likely running in browser');
