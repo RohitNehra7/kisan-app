@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { MandiService } from '../services/mandi.service';
+import { EnamService } from '../services/enam.service';
 import { supabase } from '../config/supabase';
 import { MandiRecord, ArbitrageResult } from '../types';
 
@@ -9,6 +10,15 @@ export class MandiController {
       const { state, commodity, market } = req.query;
       if (!state) return res.status(400).json({ error: 'State is required' });
 
+      // 1. Check for Live eNAM Auction first (Phase 2 Upgrade)
+      if (market && market !== 'all' && commodity && commodity !== 'all') {
+        const liveDeal = await EnamService.fetchLiveAuction(market as string, commodity as string);
+        if (liveDeal) {
+          return res.json({ success: true, count: 1, data: [liveDeal], is_live: true });
+        }
+      }
+
+      // 2. Fallback to Data Warehouse
       let data = await MandiService.getPricesFromDB(
         state as string, 
         commodity as string, 
