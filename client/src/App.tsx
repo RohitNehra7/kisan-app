@@ -17,6 +17,7 @@ const MSPCheck = lazy(() => import('./pages/MSPCheck'));
 const SchemeChecker = lazy(() => import('./pages/SchemeChecker'));
 const FarmerOnboarding = lazy(() => import('./pages/FarmerOnboarding'));
 const FarmerProfile = lazy(() => import('./pages/FarmerProfile'));
+const ArhtiyaDashboard = lazy(() => import('./pages/ArhtiyaDashboard'));
 const Weather = lazy(() => import('./pages/Weather'));
 
 const AppContent: React.FC = () => {
@@ -54,8 +55,9 @@ const AppContent: React.FC = () => {
           const { value: profileStr } = await Preferences.get({ key: 'farmer_profile' });
           const profile = profileStr ? JSON.parse(profileStr) : null;
 
-          await apiFetch('/api/notifications/register', {
+          await fetch(`${API_BASE}/api/notifications/register`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               fcm_token: token.value, 
               session_id: sessionId || 'browser-session',
@@ -135,6 +137,7 @@ const AppContent: React.FC = () => {
               <Route path="/schemes" element={<SchemeChecker />} />
               {FEATURES.enableAdvisoryEngine && <Route path="/advisory" element={<BechoYaRuko />} />}
               <Route path="/profile" element={<FarmerProfile />} />
+              <Route path="/arhtiya" element={<ArhtiyaDashboard />} />
               <Route path="/onboarding" element={<FarmerOnboarding />} />
               <Route path="/weather" element={<Weather />} />
             </Routes>
