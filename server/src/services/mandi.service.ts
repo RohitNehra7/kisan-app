@@ -60,6 +60,42 @@ export class MandiService {
   }
 
   /**
+   * Mandi Navigator: Find 3 best mandis based on transport-adjusted price
+   */
+  static async getNearlyBestDeals(userDistrict: string, crop: string): Promise<any[]> {
+    try {
+      // 1. Get latest prices for this crop in the state
+      const prices = await this.getPricesFromDB('Haryana', crop);
+      if (prices.length === 0) return [];
+
+      const userCoords = PROJECT_CONFIG.DISTRICT_COORDS[userDistrict] || PROJECT_CONFIG.DISTRICT_COORDS['Karnal'];
+      
+      const transportRate = 3; // ₹3 per quintal per 10km
+
+      const calculated = prices.map(record => {
+        const mandiCoords = PROJECT_CONFIG.DISTRICT_COORDS[record.district] || userCoords;
+        const distance = GeoService.calculateDistance(userDistrict, record.district);
+        
+        const transportCost = (distance / 10) * transportRate;
+        const netPrice = record.modal_price - transportCost;
+
+        return {
+          ...record,
+          distance: Math.round(distance),
+          transport_cost: Math.round(transportCost),
+          net_price: Math.round(netPrice)
+        };
+      });
+
+      // Sort by highest Net Price
+      return calculated.sort((a, b) => b.net_price - a.net_price).slice(0, 3);
+    } catch (e) {
+      console.error('Navigator Error:', e);
+      return [];
+    }
+  }
+
+  /**
    * Recursive Metadata Discovery
    * Scans 100% of the API data to build an exhaustive directory
    */
@@ -268,9 +304,23 @@ export class MandiService {
               ).values());
 
               if (supabase) {
-                const { error } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
-                if (error) console.warn(`⚠️ [Warehouse] DB Error:`, error.message);
+                // 1. Update current prices
+                const { error: pErr } = await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
+                if (pErr) console.warn(`⚠️ [Warehouse] Current Price Error:`, pErr.message);
                 else totalSynced += uniqueBatch.length;
+
+                // 2. Archive to price_history (Dual-Write)
+                // We map arrival_date string to proper DATE format for the history table
+                const historyData = uniqueBatch.map(item => {
+                  const [day, month, year] = item.arrival_date.split('/');
+                  return {
+                    ...item,
+                    arrival_date: `${year}-${month}-${day}` // ISO Format for Postgres DATE type
+                  };
+                });
+
+                const { error: hErr } = await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
+                if (hErr) console.warn(`⚠️ [Warehouse] History Archive Error:`, hErr.message);
               }
             } else {
               console.log(`   ∟ Info: No records reported for ${dateStr}`);

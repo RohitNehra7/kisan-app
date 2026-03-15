@@ -84,13 +84,63 @@ export class AdvisoryService {
     }
   }
 
+  /**
+   * Crop Doctor: Identify plant disease using Gemini Vision
+   */
+  static async analyzePlantDisease(imageBase64: string, cropHint?: string): Promise<any> {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const prompt = `
+        You are a highly experienced Agricultural Scientist (Crop Doctor) specialized in Indian crops (Wheat, Paddy, Mustard, Cotton).
+        Analyze the attached image of a plant/crop.
+        
+        1. Identify the crop: ${cropHint || 'Detect from image'}
+        2. Identify the disease, pest infestation, or nutrient deficiency.
+        3. Provide a clear diagnosis in Hindi and English.
+        4. Suggest 3 immediate steps for the farmer:
+           - One organic/preventative remedy.
+           - One chemical remedy (if applicable).
+           - One management tip (water, soil, spacing).
+        
+        IMPORTANT: Your entire response MUST be a valid JSON object with the following structure:
+        {
+          "crop": "English Name",
+          "disease": "English Name",
+          "diagnosis_english": "Brief scientific explanation",
+          "diagnosis_hindi": "हिंदी में संक्षिप्त वैज्ञानिक व्याख्या",
+          "remedies_english": ["Step 1", "Step 2", "Step 3"],
+          "remedies_hindi": ["चरण 1", "चरण 2", "चरण 3"],
+          "severity": "Low/Medium/High"
+        }
+      `;
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: imageBase64,
+            mimeType: "image/jpeg"
+          }
+        }
+      ]);
+
+      const text = result.response.text();
+      // Clean potential markdown code blocks
+      const cleanJson = text.replace(/```json|```/g, "").trim();
+      return JSON.parse(cleanJson);
+    } catch (e: any) {
+      console.error('Gemini Vision Error:', e.message);
+      throw new Error('AI Doctor was unable to process the image. Please try again with a clearer photo.');
+    }
+  }
+
   private static async getMandiDataSummary(district: string, crop: string): Promise<MandiDataSummary> {
     const records = await MandiService.getPricesFromDB('Haryana', crop);
     const districtRecords = records.filter(r => r.district.toLowerCase().includes(district.toLowerCase()));
     
     if (districtRecords.length === 0) throw new Error('No mandi data for this district');
 
-    // Group by market and get latest
     const latestByMandi = Array.from(new Map(districtRecords.map(r => [r.market, r])).values());
     
     const parseDate = (d: string) => {
@@ -135,7 +185,7 @@ export class AdvisoryService {
       todayArrivals,
       arrivalSignal,
       modalPriceAvg,
-      trend7d: 0 // Placeholder until history backfill is fully used
+      trend7d: 0 
     };
   }
 
