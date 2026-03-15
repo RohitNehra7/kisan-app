@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
-import { useInView } from 'react-intersection-observer';
-import { apiFetch } from '../../services/api';
 import { MSP_2025 } from '../../constants/haryana.constants';
 import type { MandiPrice, UnitType } from '../../types/mandi.types';
 
@@ -22,30 +19,6 @@ const PriceCard: React.FC<PriceCardProps> = ({
   onViewTrends 
 }) => {
   const { t } = useTranslation();
-  const [trendData, setTrendData] = useState<any[]>([]);
-  const [hasFetched, setHasFetched] = useState(false);
-
-  // Lazy loading hook: triggered when card is 10% visible
-  const { ref, inView } = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-
-  useEffect(() => {
-    if (inView && !hasFetched) {
-      const fetchTrend = async () => {
-        try {
-          const resp = await apiFetch(`/api/mandi/history?market=${encodeURIComponent(record.market)}&commodity=${encodeURIComponent(record.commodity)}`);
-          const json = await resp.json();
-          if (json.success) {
-            setTrendData(json.data.slice(-7));
-            setHasFetched(true);
-          }
-        } catch (e) {}
-      };
-      fetchTrend();
-    }
-  }, [inView, hasFetched, record.market, record.commodity]);
 
   const convertPrice = (price: number) => {
     if (unit === 'maund') return Math.round(price * 0.4);
@@ -79,7 +52,7 @@ const PriceCard: React.FC<PriceCardProps> = ({
   const freshnessColor = daysOld === 0 ? 'text-emerald-600 bg-emerald-50' : (daysOld === 1 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50');
 
   return (
-    <div ref={ref} className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden group h-full">
+    <div className="bg-white rounded-3xl border border-slate-200 p-6 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden group h-full">
       {/* Freshness Badge */}
       <div className={`absolute top-0 right-0 px-3 py-1.5 rounded-bl-2xl text-[8px] font-black uppercase tracking-widest transition-colors ${freshnessColor}`}>
         {freshnessLabel}
@@ -128,32 +101,13 @@ const PriceCard: React.FC<PriceCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-auto flex items-center gap-3 mb-4">
+      <div className="mt-auto flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-lg">📍</div>
         <div className="overflow-hidden">
           <p className="text-slate-900 font-black text-sm leading-tight truncate uppercase tracking-tight">{record?.market}</p>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest truncate">{record?.district}</p>
         </div>
       </div>
-
-      {/* 7-Day Sparkline */}
-      {trendData.length > 1 && (
-        <div className="h-12 w-full mb-4 bg-slate-50 rounded-xl p-1 overflow-hidden">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData}>
-              <YAxis hide domain={['auto', 'auto']} />
-              <Line 
-                type="monotone" 
-                dataKey="modal_price" 
-                stroke="#1B5E20" 
-                strokeWidth={2} 
-                dot={false} 
-                isAnimationActive={false} 
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
 
       <div className="flex gap-2">
         <button

@@ -1,7 +1,8 @@
 const { Client } = require('pg');
+require('dotenv').config();
 
 const client = new Client({
-  connectionString: 'postgresql://postgres:RoTapasNe-26@db.rhvtwdshkfqgudjpnjwd.supabase.co:5432/postgres'
+  connectionString: process.env.DATABASE_URL
 });
 
 async function migrate() {
@@ -123,10 +124,14 @@ async function migrate() {
 
   // 8. Scheme Rules Engine
   await client.query(`
+    DROP TABLE IF EXISTS scheme_rules;
     CREATE TABLE IF NOT EXISTS scheme_rules (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       scheme_name TEXT NOT NULL,
       scheme_hindi TEXT NOT NULL,
+      description_english TEXT NOT NULL,
+      description_hindi TEXT NOT NULL,
+      benefit_english TEXT NOT NULL,
       benefit_hindi TEXT NOT NULL,
       eligibility_rules JSONB NOT NULL,
       payment_schedule TEXT,
@@ -137,26 +142,50 @@ async function migrate() {
     );
   `);
 
+  // 9. Sync Logs (Reliability Heartbeat)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS sync_logs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      worker_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      records_synced INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Seed initial schemes
   await client.query(`
-    INSERT INTO scheme_rules (scheme_name, scheme_hindi, benefit_hindi, eligibility_rules, payment_schedule, apply_url, documents_required) VALUES
+    INSERT INTO scheme_rules (scheme_name, scheme_hindi, description_english, description_hindi, benefit_english, benefit_hindi, eligibility_rules, apply_url) VALUES
     (
       'PM-KISAN',
       'PM किसान सम्मान निधि',
+      'Direct income support for farmers to meet domestic and farm needs.',
+      'किसानों को खेती और घरेलू जरूरतों के लिए सीधी आय सहायता।',
+      '₹6,000 per year — 3 installments of ₹2,000.',
       '₹6,000 प्रति वर्ष — ₹2,000 की तीन किस्तें',
-      '{"min_land": 0, "requires_aadhaar": true, "requires_bank": true}',
-      'हर 4 महीने में ₹2,000',
-      'https://pmkisan.gov.in',
-      ARRAY['आधार कार्ड', 'बैंक पासबुक', 'जमीन की फर्द']
+      '{"has_land": true, "requires_aadhaar": true, "requires_bank": true}',
+      'https://pmkisan.gov.in'
     ),
     (
       'KCC',
       'किसान क्रेडिट कार्ड (KCC)',
+      'Easy credit for farming expenses, seeds, and fertilizers.',
+      'खेती के खर्चों, बीज, खाद और मशीनरी के लिए आसान लोन।',
+      'Low-interest loans up to ₹3 Lakhs.',
       'खेती के लिए कम ब्याज पर लोन',
-      '{"requires_land": true}',
-      'फसल बेचने के बाद आसान भुगतान',
-      'https://www.nabard.org',
-      ARRAY['आधार कार्ड', 'जमीन के कागजात', 'बैंक पासबुक']
+      '{"has_land": true}',
+      'https://www.nabard.org'
+    ),
+    (
+      'MFMB',
+      'मेरा पानी मेरी विरासत',
+      'Incentive for Haryana farmers to switch from Paddy to other crops.',
+      'धान की जगह दूसरी फसलें उगाने पर हरियाणा सरकार की प्रोत्साहन राशि।',
+      '₹7,000 per acre incentive.',
+      'फसल विविधीकरण के लिए ₹7,000 प्रति एकड़ प्रोत्साहन।',
+      '{"is_haryana": true, "paddy_only": true}',
+      'https://fasal.haryana.gov.in/'
     )
     ON CONFLICT DO NOTHING;
   `);
