@@ -23,4 +23,16 @@ export class AdvisoryController {
       res.status(500).json({ success: false, error: e.message });
     }
   }
+
+  static async analyzeDisease(req: Request, res: Response) {
+    try {
+      const { image, crop } = req.body;
+      if (!image) return res.status(400).json({ error: 'Image is required' });
+
+      const data = await AdvisoryService.analyzePlantDisease(image, crop);
+      res.json({ success: true, data });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
 }
