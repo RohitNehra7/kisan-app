@@ -58,7 +58,9 @@ const MandiPrices: React.FC = () => {
     historyModal?.market || '',
     historyModal?.commodity || '',
     !!historyModal
-  );
+  const [selectedCrop, setSelectedCrop] = useState<string>('all');
+  const [bestDeals, setBestDeals] = useState<any[]>([]);
+  const [isNavigatorLoading, setIsNavigatorLoading] = useState(false);
 
   // 1. Initial Metadata Load (States only)
   useEffect(() => {
@@ -78,6 +80,25 @@ const MandiPrices: React.FC = () => {
     init();
     trackEvent('mandi_view', { district: state });
   }, [state]);
+
+  // Fetch Navigator Deals when crop changes
+  useEffect(() => {
+    if (selectedCrop !== 'all' && state === 'Haryana') {
+      const loadNavigator = async () => {
+        setIsNavigatorLoading(true);
+        try {
+          const resp = await apiFetch(`/api/mandi/navigator?district=Karnal&crop=${encodeURIComponent(selectedCrop)}`);
+          const json = await resp.json();
+          if (json.success) setBestDeals(json.data);
+        } catch (e) {} finally {
+          setIsNavigatorLoading(false);
+        }
+      };
+      loadNavigator();
+    } else {
+      setBestDeals([]);
+    }
+  }, [selectedCrop, state]);
 
   // 2. Localized Hierarchy Computation
   const availableMandis = useMemo(() => {
@@ -226,6 +247,61 @@ const MandiPrices: React.FC = () => {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:px-8">
         {!isLoading && prices && prices.length > 0 && (
           <DataFreshnessBanner arrivalDate={prices[0].arrival_date} />
+        )}
+
+        {/* Mandi Navigator Section (Phase 2) */}
+        {selectedCrop !== 'all' && bestDeals.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center gap-2 mb-4 ml-1">
+              <span className="text-xl">🚀</span>
+              <h3 className="text-lg font-black uppercase tracking-tighter italic text-slate-800">
+                {isHindi ? 'सबसे अच्छे भाव (ट्रांसपोर्ट के बाद)' : 'Best Deals (After Transport)'}
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {bestDeals.map((deal, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  key={deal.market} 
+                  className={`p-6 rounded-[2rem] border-2 flex flex-col relative overflow-hidden ${idx === 0 ? 'bg-slate-900 border-slate-900 text-white shadow-2xl scale-105 z-10' : 'bg-white border-slate-100 text-slate-900 shadow-xl'}`}
+                >
+                  {idx === 0 && (
+                    <div className="absolute top-0 right-0 bg-primary text-white text-[8px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest">BEST VALUE</div>
+                  )}
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${idx === 0 ? 'text-slate-400' : 'text-slate-400'}`}>Mandi</p>
+                      <h4 className="text-xl font-black italic tracking-tighter leading-none">{deal.market}</h4>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${idx === 0 ? 'text-slate-400' : 'text-slate-400'}`}>Distance</p>
+                      <p className="font-black italic">{deal.distance} km</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t border-white/10 flex flex-col gap-1">
+                    <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase tracking-widest">
+                      <span>Market Price</span>
+                      <span>₹{deal.modal_price}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-bold opacity-60 uppercase tracking-widest">
+                      <span>Transport</span>
+                      <span>-₹{deal.transport_cost}</span>
+                    </div>
+                    <div className="flex justify-between items-end mt-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest">Net Profit</span>
+                      <span className={`text-3xl font-black tracking-tighter ${idx === 0 ? 'text-emerald-400' : 'text-primary'}`}>₹{deal.net_price}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <p className="text-center mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {isHindi ? `सबसे अच्छा: ${bestDeals[0].market} — ₹${bestDeals[0].net_price - bestDeals[1].net_price} ज़्यादा मिलेगा ट्रांसपोर्ट के बाद` : `Best: ${bestDeals[0].market} — You get ₹${bestDeals[0].net_price - bestDeals[1].net_price} more after transport`}
+            </p>
+          </div>
         )}
 
         <div className="min-h-[60vh]">

@@ -94,21 +94,33 @@ export class MandiController {
     }
   }
 
-  static async calculateArbitrage(req: Request, res: Response) {
+  static async getArbitrage(req: Request, res: Response) {
     try {
-      const { crop, quantity, district, transport_rate } = req.body;
+      const { crop, quantity, district, transport_rate } = req.query;
       if (!crop || !district) return res.status(400).json({ error: 'Crop and District are required' });
-      
+
       const data = await MandiService.calculateArbitrage(
-        crop, 
-        quantity || 50, 
-        district, 
-        transport_rate || 2.5
+        crop as string, 
+        Number(quantity) || 50, 
+        district as string, 
+        Number(transport_rate) || 2.5
       );
       res.json({ success: true, data });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
     }
   }
-}
+
+  static async getNavigatorDeals(req: Request, res: Response) {
+    try {
+      const { district, crop } = req.query;
+      if (!district || !crop) return res.status(400).json({ error: 'District and Crop are required' });
+
+      const data = await MandiService.getNearlyBestDeals(district as string, crop as string);
+      res.json({ success: true, data });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+  }
 

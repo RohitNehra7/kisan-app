@@ -60,6 +60,42 @@ export class MandiService {
   }
 
   /**
+   * Mandi Navigator: Find 3 best mandis based on transport-adjusted price
+   */
+  static async getNearlyBestDeals(userDistrict: string, crop: string): Promise<any[]> {
+    try {
+      // 1. Get latest prices for this crop in the state
+      const prices = await this.getPricesFromDB('Haryana', crop);
+      if (prices.length === 0) return [];
+
+      const userCoords = PROJECT_CONFIG.DISTRICT_COORDS[userDistrict] || PROJECT_CONFIG.DISTRICT_COORDS['Karnal'];
+      
+      const transportRate = 3; // ₹3 per quintal per 10km
+
+      const calculated = prices.map(record => {
+        const mandiCoords = PROJECT_CONFIG.DISTRICT_COORDS[record.district] || userCoords;
+        const distance = GeoService.calculateDistance(userDistrict, record.district);
+        
+        const transportCost = (distance / 10) * transportRate;
+        const netPrice = record.modal_price - transportCost;
+
+        return {
+          ...record,
+          distance: Math.round(distance),
+          transport_cost: Math.round(transportCost),
+          net_price: Math.round(netPrice)
+        };
+      });
+
+      // Sort by highest Net Price
+      return calculated.sort((a, b) => b.net_price - a.net_price).slice(0, 3);
+    } catch (e) {
+      console.error('Navigator Error:', e);
+      return [];
+    }
+  }
+
+  /**
    * Recursive Metadata Discovery
    * Scans 100% of the API data to build an exhaustive directory
    */
