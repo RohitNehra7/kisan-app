@@ -498,13 +498,13 @@ export class MandiService {
   }
 
   /**
-   * Get historical trends
+   * Get historical trends from the Time-Series Warehouse
    */
   static async getHistory(market: string, commodity: string): Promise<any[]> {
     try {
       if (!supabase) return [];
       const { data, error } = await supabase
-        .from('prices')
+        .from('price_history')
         .select('arrival_date, modal_price, arrivals_in_qtl')
         .eq('market', market)
         .eq('commodity', commodity)
@@ -514,6 +514,7 @@ export class MandiService {
       if (error) throw error;
       return data || [];
     } catch (err) {
+      console.error('Trend Fetch Error:', err);
       return [];
     }
   }
