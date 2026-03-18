@@ -8,6 +8,7 @@ import {
 import { useMandiPrices, useMandiHistory } from '../hooks/useMandiPrices';
 import { useDebouncedValue } from '../hooks/useDebouncedSearch';
 import { fetchStates } from '../services/mandi.service';
+import { apiFetch } from '../services/api';
 import { getEnglishCommodity } from '../constants/synonyms';
 import { trackEvent } from '../services/analytics';
 import PriceCard from '../components/mandi/PriceCard';
@@ -28,6 +29,7 @@ type FilterMode = 'all' | 'primary' | 'favorites';
 
 const MandiPrices: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const isHindi = i18n.language === 'hi';
   
   // Basic State
   const [state, setState] = useState<string>('Haryana');
@@ -58,7 +60,7 @@ const MandiPrices: React.FC = () => {
     historyModal?.market || '',
     historyModal?.commodity || '',
     !!historyModal
-  const [selectedCrop, setSelectedCrop] = useState<string>('all');
+  );
   const [bestDeals, setBestDeals] = useState<any[]>([]);
   const [isNavigatorLoading, setIsNavigatorLoading] = useState(false);
 
