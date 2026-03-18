@@ -377,7 +377,7 @@ const MandiPrices: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 
