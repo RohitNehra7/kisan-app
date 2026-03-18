@@ -1,57 +1,89 @@
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+import puppeteer from 'puppeteer';
 import { MandiRecord } from '../types';
 
 /**
- * LIVE MANDI SERVICE (Direct Portal Ingester)
- * Bypasses the delayed OGD API by scraping the official Agmarknet portal directly.
- * This is the 'Secret Sauce' that ensures KisanNiti is always faster than competitors.
+ * LIVE MANDI SERVICE (Puppeteer Ingester)
+ * Designed for Agmarknet 2.0 (React SPA)
+ * This service launches a headless browser to wait for JS-rendered tables.
  */
 export class LiveMandiService {
   /**
-   * Fetch live price from the Agmarknet Search Portal
+   * Fetch live price from the Agmarknet 2.0 Portal
+   * Implements Multi-Day Fallback to ensure we catch the latest possible data.
    */
   static async fetchDirectFromPortal(state: string, district: string, market: string, commodity: string): Promise<MandiRecord | null> {
+    let browser;
     try {
-      console.log(`📡 [LiveSource] Fetching direct from Agmarknet for ${market}...`);
+      console.log(`📡 [Puppeteer] Launching browser for ${market} | ${commodity}...`);
       
-      // Agmarknet Search URL (This is the official portal used by Mandi Secretaries)
-      const url = `https://agmarknet.gov.in/SearchCCommodityReport.aspx?Common=Off&SerType=L&State=${state}&Dist=${district}&Market=${market}&Comm=${commodity}&Date=${new Date().toLocaleDateString('en-GB')}`;
-
-      const response = await axios.get(url, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
+      browser = await puppeteer.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
+      
+      const page = await browser.newPage();
+      
+      // Attempt search for today, then yesterday, then day before
+      const daysToTry = 3;
+      for (let i = 0; i < daysToTry; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        
+        console.log(`   ∟ Trying date: ${dateStr}...`);
 
-      const $ = cheerio.load(response.data);
-      
-      // Target the first data row in the Agmarknet result table
-      // Standard Agmarknet selector: #cphBody_GridSearch
-      const tableRow = $('#cphBody_GridSearch tr').eq(1); 
-      
-      if (!tableRow || tableRow.find('td').length < 5) {
-        return null; // No data found for today yet
+        const url = `https://agmarknet.gov.in/SearchCCommodityReport.aspx?Common=Off&SerType=L&State=${state}&Dist=${district}&Market=${market}&Comm=${commodity}&Date=${dateStr}`;
+
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        const tableSelector = '#cphBody_GridSearch';
+        try {
+          await page.waitForSelector(tableSelector, { timeout: 5000 });
+          
+          const data = await page.evaluate(() => {
+            const rows = document.querySelectorAll('#cphBody_GridSearch tr');
+            if (rows.length < 2) return null;
+            
+            const firstDataRow = rows[1];
+            if (!firstDataRow) return null;
+
+            const cols = firstDataRow.querySelectorAll('td');
+            if (cols.length < 10) return null;
+
+            const getColText = (idx: number) => {
+              const el = cols[idx];
+              return el ? (el as HTMLElement).innerText.trim() : "";
+            };
+
+            return {
+              state: getColText(0),
+              district: getColText(1),
+              market: getColText(2),
+              commodity: getColText(3),
+              variety: getColText(4),
+              arrivals_in_qtl: parseFloat(getColText(5)) || 0,
+              arrival_date: getColText(6),
+              min_price: parseFloat(getColText(7)) || 0,
+              max_price: parseFloat(getColText(8)) || 0,
+              modal_price: parseFloat(getColText(9)) || 0
+            };
+          });
+
+          if (data && data.modal_price > 0) {
+            console.log(`   ✅ Success! Found data for ${dateStr}`);
+            return data;
+          }
+        } catch (e) {
+          continue; // Try previous day
+        }
       }
 
-      const cols = tableRow.find('td');
-
-      return {
-        state: $(cols[0]).text().trim(),
-        district: $(cols[1]).text().trim(),
-        market: $(cols[2]).text().trim(),
-        commodity: $(cols[3]).text().trim(),
-        variety: $(cols[4]).text().trim(),
-        arrival_date: $(cols[6]).text().trim(),
-        min_price: parseFloat($(cols[7]).text().trim()) || 0,
-        max_price: parseFloat($(cols[8]).text().trim()) || 0,
-        modal_price: parseFloat($(cols[9]).text().trim()) || 0,
-        arrivals_in_qtl: parseFloat($(cols[5]).text().trim()) || 0
-      };
-    } catch (e: any) {
-      console.warn(`⚠️ [LiveSource] Portal fetch failed: ${e.message}`);
       return null;
+    } catch (e: any) {
+      console.warn(`⚠️ [Puppeteer] Portal fetch failed: ${e.message}`);
+      return null;
+    } finally {
+      if (browser) await browser.close();
     }
   }
 }
