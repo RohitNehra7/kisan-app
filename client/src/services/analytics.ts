@@ -15,7 +15,7 @@ const getSessionId = () => {
  */
 export const trackEvent = async (
   eventType: string, 
-  metadata: { district?: string; crop?: string } = {}
+  metadata: { district?: string; crop?: string; [key: string]: any } = {}
 ): Promise<void> => {
   try {
     await apiFetch('/api/events', {
@@ -24,6 +24,7 @@ export const trackEvent = async (
         event_type: eventType,
         district: metadata.district,
         crop: metadata.crop,
+        disease: metadata.disease, // Pass disease if present
         session_id: getSessionId(),
         platform: window.navigator.userAgent.includes('Android') ? 'android' : 'web'
       })

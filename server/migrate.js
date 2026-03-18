@@ -57,7 +57,7 @@ async function migrate() {
     );
   `);
 
-  // 4. Farmer Profiles
+  // 4. Farmer Profiles (Expanded for Phase 2)
   await client.query(`
     CREATE TABLE IF NOT EXISTS farmer_profiles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,8 +68,27 @@ async function migrate() {
       quantity_quintals INTEGER,
       storage_cost_per_day NUMERIC(6,2) DEFAULT 0.50,
       urgency TEXT DEFAULT 'flexible',
+      has_aadhaar BOOLEAN DEFAULT false,
+      has_bank_account BOOLEAN DEFAULT false,
+      has_kcc BOOLEAN DEFAULT false,
+      land_acres NUMERIC(8,2) DEFAULT 0,
       push_token TEXT,
+      session_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // 10. Notification Registry (Phase 2)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS notification_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      fcm_token TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      district TEXT,
+      crop TEXT,
+      is_arhtiya BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(session_id)
     );
   `);
 

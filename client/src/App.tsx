@@ -16,6 +16,8 @@ const BechoYaRuko = lazy(() => import('./pages/BechoYaRuko'));
 const MSPCheck = lazy(() => import('./pages/MSPCheck'));
 const SchemeChecker = lazy(() => import('./pages/SchemeChecker'));
 const FarmerOnboarding = lazy(() => import('./pages/FarmerOnboarding'));
+const FarmerProfile = lazy(() => import('./pages/FarmerProfile'));
+const ArhtiyaDashboard = lazy(() => import('./pages/ArhtiyaDashboard'));
 const Weather = lazy(() => import('./pages/Weather'));
 
 const AppContent: React.FC = () => {
@@ -48,14 +50,21 @@ const AppContent: React.FC = () => {
         }
 
         PushNotifications.addListener('registration', async (token) => {
-          const { value: phone } = await Preferences.get({ key: 'user_phone' });
-          if (phone) {
-            await fetch('/api/farmer-profile/push-token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone, push_token: token.value })
-            });
-          }
+          console.log('Push registration success, token: ' + token.value);
+          const { value: sessionId } = await Preferences.get({ key: 'user_session_id' });
+          const { value: profileStr } = await Preferences.get({ key: 'farmer_profile' });
+          const profile = profileStr ? JSON.parse(profileStr) : null;
+
+          await fetch(`${API_BASE}/api/notifications/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              fcm_token: token.value, 
+              session_id: sessionId || 'browser-session',
+              district: profile?.district,
+              crop: profile?.main_crop
+            })
+          });
         });
       } catch (e) {
         console.warn('Push registration failed - likely running in browser');
@@ -71,7 +80,7 @@ const AppContent: React.FC = () => {
     { path: '/schemes', label: i18n.language === 'hi' ? 'योजनाएं' : 'Schemes', icon: '🏛️' },
     ...(FEATURES.enableAdvisoryEngine ? [{ path: '/advisory', label: t('nav.advisory'), icon: '🤖' }] : []),
     { path: '/weather', label: t('nav.weather'), icon: '⛅' },
-    { path: '/profile', label: t('nav.profile'), icon: '🚜' },
+    { path: '/profile', label: i18n.language === 'hi' ? 'मेरा खेत' : 'My Farm', icon: '🚜' },
   ];
 
   return (
@@ -127,7 +136,9 @@ const AppContent: React.FC = () => {
               <Route path="/msp-check" element={<MSPCheck />} />
               <Route path="/schemes" element={<SchemeChecker />} />
               {FEATURES.enableAdvisoryEngine && <Route path="/advisory" element={<BechoYaRuko />} />}
-              <Route path="/profile" element={<FarmerOnboarding />} />
+              <Route path="/profile" element={<FarmerProfile />} />
+              <Route path="/arhtiya" element={<ArhtiyaDashboard />} />
+              <Route path="/onboarding" element={<FarmerOnboarding />} />
               <Route path="/weather" element={<Weather />} />
             </Routes>
           </Suspense>
