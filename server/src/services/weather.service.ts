@@ -136,4 +136,15 @@ export class WeatherService {
       return null;
     }
   }
+
+  /**
+   * Get count of days with >30% rain probability in next 14 days
+   */
+  static getRainDaysNext14(weatherData: WeatherData): number {
+    if (!weatherData || !weatherData.forecast) return 0;
+    return weatherData.forecast
+      .slice(0, 14)
+      .filter((day: any) => day.precipProb > 30)
+      .length;
+  }
 }

@@ -45,7 +45,7 @@ const DEFAULT_PROFILE: FarmerProfile = {
 };
 
 const FarmerProfilePage: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isHindi = i18n.language === 'hi';
   
   const [profile, setProfile] = useState<FarmerProfile>(DEFAULT_PROFILE);

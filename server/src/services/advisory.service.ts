@@ -2,8 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MandiService } from './mandi.service';
 import { WeatherService } from './weather.service';
 import { SellHoldResponse, MandiRecord } from '../types';
-import { MSP_2025 } from '../config/haryana.constants';
+import { MSP_2025, HARYANA_MANDIS } from '../config/haryana.constants';
 import { supabase } from '../config/supabase';
+import { ruleBasedDecision, RuleInputs, RuleOutput } from './advisory-rules.service';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -23,14 +24,14 @@ interface MandiDataSummary {
 
 export class AdvisoryService {
   /**
-   * Core Sell/Hold Decision Engine (Phase 0 Spec)
+   * Hybrid Advisory Engine (Phase 1)
    */
   static async getRecommendation(
     crop: string,
     quantity: number,
     district: string,
     storageCostPerDay: number,
-    urgency: string
+    urgency: 'now' | '2weeks' | 'flexible'
   ): Promise<SellHoldResponse> {
     try {
       // 1. Fetch Market Data + Arrivals
@@ -40,27 +41,56 @@ export class AdvisoryService {
       // 2. Fetch MSP from DB
       const msp = await this.getMSPFromDB(crop);
 
-      // 3. Fetch Weather Summary
+      // 3. Fetch Weather structured data
       console.log(`[Advisory] Analysing weather for ${district}...`);
-      const weatherSummary = await this.getWeatherNaturalLanguageSummary(district, crop);
+      const weatherFull = await WeatherService.getFullWeather({ district });
+      const rainDaysNext14 = weatherFull ? WeatherService.getRainDaysNext14(weatherFull) : 0;
+      const weatherSummary = weatherFull
+        ? `अगले 14 दिन: ${rainDaysNext14} दिन बारिश की संभावना, अधिकतम तापमान ${weatherFull.todayHigh}°C.`
+        : "मौसम डेटा उपलब्ध नहीं है।";
 
-      // 4. Construct Prompt
-      const prompt = this.buildGeminiPrompt({
-        crop, quantity, district, urgency, storageCostPerDay,
-        mandiData: mandiSummary,
-        msp,
-        weatherSummary
-      });
+      // 4. Run Rule-Based Engine first (deterministic)
+      const ruleInputs: RuleInputs = {
+        arrivalSignal: mandiSummary.arrivalSignal,
+        priceTrend7d: mandiSummary.trend7d,
+        rainDaysNext14,
+        urgency,
+        priceAboveMSPPct: ((mandiSummary.modalPriceAvg - msp) / msp) * 100,
+        storageCostPerDay,
+        quantity,
+        cropType: crop,
+        currentPrice: mandiSummary.modalPriceAvg
+      };
 
-      // 5. Call AI
-      console.log(`[Advisory] Consulting Gemini for final decision...`);
-      let aiResponse = await this.callGemini(prompt);
+      const ruleResult = ruleBasedDecision(ruleInputs);
+
+      // 5. Hybrid Logic: Use rules for clear signals, AI for mixed ones
+      let aiResponse: any;
+      if (Math.abs(ruleResult.net_score) >= 3) {
+        console.log(`[Advisory] Clear signal (net=${ruleResult.net_score}). Using rule engine.`);
+        aiResponse = ruleResult;
+      } else {
+        console.log(`[Advisory] Mixed signal (net=${ruleResult.net_score}). Calling Gemini.`);
+        try {
+          const prompt = this.buildGeminiPrompt({
+            crop, quantity, district, urgency, storageCostPerDay,
+            mandiData: mandiSummary,
+            msp,
+            weatherSummary,
+            ruleResult
+          });
+          aiResponse = await this.callGemini(prompt);
+        } catch (err) {
+          console.warn('[Advisory] Gemini failed. Falling back to rules.');
+          aiResponse = ruleResult;
+        }
+      }
 
       // 6. Apply Staleness Penalty
       const finalResponse = this.applyStalenessPenalty(aiResponse, mandiSummary.dataAgeDays);
 
       // 7. Log to DB (Background)
-      this.logRecommendation(crop, quantity, district, finalResponse, mandiSummary, weatherSummary);
+      this.logRecommendation(crop, quantity, district, finalResponse, mandiSummary, weatherSummary, aiResponse);
 
       return {
         ...finalResponse,
@@ -69,7 +99,7 @@ export class AdvisoryService {
       };
 
     } catch (err: any) {
-      console.error('Advisory Engine Total Failure:', err.message);
+      console.error('Advisory Engine Failure:', err.message);
       return {
         decision: "HOLD_7_DAYS",
         confidence: "LOW",
@@ -126,12 +156,11 @@ export class AdvisoryService {
       ]);
 
       const text = result.response.text();
-      // Clean potential markdown code blocks
       const cleanJson = text.replace(/```json|```/g, "").trim();
       return JSON.parse(cleanJson);
     } catch (e: any) {
       console.error('Gemini Vision Error:', e.message);
-      throw new Error('AI Doctor was unable to process the image. Please try again with a clearer photo.');
+      throw new Error('AI Doctor was unable to process the image.');
     }
   }
 
@@ -155,9 +184,7 @@ export class AdvisoryService {
       parseDate(b.arrival_date).getTime() - parseDate(a.arrival_date).getTime()
     );
 
-    const mostRecentDateStr = (sortedByDate.length > 0 && sortedByDate[0])
-      ? sortedByDate[0].arrival_date 
-      : new Date().toLocaleDateString('en-GB');
+    const mostRecentDateStr = sortedByDate[0]?.arrival_date || new Date().toLocaleDateString('en-GB');
 
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -176,6 +203,7 @@ export class AdvisoryService {
     }
 
     const modalPriceAvg = latestByMandi.reduce((sum, r) => sum + r.modal_price, 0) / latestByMandi.length;
+    const trend7d = await this.getPrice7dTrend(district, crop);
 
     return {
       records: latestByMandi,
@@ -185,8 +213,33 @@ export class AdvisoryService {
       todayArrivals,
       arrivalSignal,
       modalPriceAvg,
-      trend7d: 0 
+      trend7d
     };
+  }
+
+  private static async getPrice7dTrend(district: string, crop: string): Promise<number> {
+    const mandis = HARYANA_MANDIS[district] ?? [];
+    const eightDaysAgo = new Date();
+    eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
+    const isoDate = eightDaysAgo.toISOString().split('T')[0];
+
+    try {
+      const { data } = await supabase
+        .from('price_history')
+        .select('modal_price, arrival_date')
+        .in('market', mandis)
+        .eq('commodity', crop)
+        .gte('arrival_date', isoDate)
+        .order('arrival_date', { ascending: true });
+
+      if (!data || data.length < 2) return 0;
+
+      const newest = data[data.length - 1]?.modal_price || 0;
+      const oldest = data[0]?.modal_price || 0;
+      return Math.round(newest - oldest);
+    } catch (e) {
+      return 0;
+    }
   }
 
   private static async getMSPFromDB(crop: string): Promise<number> {
@@ -204,25 +257,18 @@ export class AdvisoryService {
     }
   }
 
-  private static async getWeatherNaturalLanguageSummary(district: string, crop: string): Promise<string> {
-    const weather = await WeatherService.getFullWeather({ district });
-    if (!weather) return "मौसम डेटा उपलब्ध नहीं है।";
-
-    const totalRain = weather.forecast.reduce((acc, curr) => acc + (curr.precipProb > 30 ? 1 : 0), 0);
-    const maxTemp = Math.max(...weather.forecast.map(f => f.temp));
-
-    return `अगले 14 दिन: ${totalRain} दिन बारिश की संभावना, अधिकतम तापमान ${maxTemp}°C. ${totalRain > 3 ? 'बारिश का जोखिम मध्यम है।' : 'मौसम शुष्क रहने की उम्मीद है।'}`;
-  }
-
   private static buildGeminiPrompt(params: any): string {
-    const { crop, quantity, district, urgency, storageCostPerDay, mandiData, msp, weatherSummary } = params;
-    
+    const { crop, quantity, district, urgency, storageCostPerDay, mandiData, msp, weatherSummary, ruleResult } = params;
     const mandiLines = mandiData.records
       .map((r: any) => `- ${r.market}: ₹${r.modal_price}/q | आवक: ${r.arrivals_in_qtl}q`)
       .join('\n');
 
     return `You are an expert agricultural commodity market analyst for Haryana, India.
 RESPOND ONLY WITH VALID JSON. No markdown, no preamble. JSON only.
+
+NOTE: The rule engine scored this as a MIXED SIGNAL case (net_score=${ruleResult.net_score}).
+Rule engine tentative decision: ${ruleResult.decision} (LOW confidence).
+Your job is to resolve the ambiguity using your deeper reasoning.
 
 किसान की स्थिति:
 - फसल: ${crop} | मात्रा: ${quantity} क्विंटल
@@ -231,13 +277,14 @@ RESPOND ONLY WITH VALID JSON. No markdown, no preamble. JSON only.
 
 मंडी डेटा (${mandiData.dataAgeDays === 0 ? 'आज' : mandiData.dataAgeDays === 1 ? 'कल' : `${mandiData.dataAgeDays} दिन पुराना`}):
 ${mandiLines}
+- 7-दिन मूल्य trend: ₹${mandiData.trend7d > 0 ? '+' : ''}${mandiData.trend7d}
 - आज की कुल आवक: ${mandiData.todayArrivals}q | 7-दिन औसत: ${mandiData.avg7dArrivals}q → ${mandiData.arrivalSignal}
-- MSP सीमा: ₹${msp}/q
+- MSP सीमा: ₹${msp}/q | वर्तमान भाव MSP से: ${(((mandiData.modalPriceAvg - msp) / msp) * 100).toFixed(1)}%
 
 मौसम (${district}):
 ${weatherSummary}
 
-RESPOND WITH EXACTLY THIS JSON (no other text):
+RESPOND WITH EXACTLY THIS JSON:
 {
   "decision": "SELL_NOW" | "HOLD_7_DAYS" | "HOLD_14_DAYS" | "PARTIAL_SELL",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
@@ -256,11 +303,9 @@ RESPOND WITH EXACTLY THIS JSON (no other text):
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         return JSON.parse(text.replace(/```json|```/g, '').trim());
-      } catch (e) {
-        continue;
-      }
+      } catch (e) { continue; }
     }
-    throw new Error("AI total failure");
+    throw new Error("AI failure");
   }
 
   private static applyStalenessPenalty(response: any, days: number): any {
@@ -275,7 +320,7 @@ RESPOND WITH EXACTLY THIS JSON (no other text):
     };
   }
 
-  private static async logRecommendation(crop: string, qty: number, dist: string, res: any, mandi: any, weather: string) {
+  private static async logRecommendation(crop: string, qty: number, dist: string, res: any, mandi: any, weather: string, aiRes: any) {
     if (!supabase) return;
     try {
       await supabase.from('sell_hold_recommendations').insert({
@@ -289,7 +334,9 @@ RESPOND WITH EXACTLY THIS JSON (no other text):
         arrival_signal: mandi.arrivalSignal,
         data_age_days: mandi.dataAgeDays,
         mandi_data: mandi.records,
-        weather_data: { summary: weather }
+        weather_data: { summary: weather },
+        engine_used: aiRes.used_rules ? 'rules' : 'gemini',
+        net_score: aiRes.net_score ?? null
       });
     } catch (e) {}
   }

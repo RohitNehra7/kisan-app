@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { apiFetch } from '../services/api';
 import SEO from '../components/common/KisanSeo';
 

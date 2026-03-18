@@ -18,6 +18,7 @@ import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
 import SEO from '../components/common/KisanSeo';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
+import { FEATURES } from '../config/features';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -62,7 +63,6 @@ const MandiPrices: React.FC = () => {
     !!historyModal
   );
   const [bestDeals, setBestDeals] = useState<any[]>([]);
-  const [isNavigatorLoading, setIsNavigatorLoading] = useState(false);
 
   // 1. Initial Metadata Load (States only)
   useEffect(() => {
@@ -87,14 +87,11 @@ const MandiPrices: React.FC = () => {
   useEffect(() => {
     if (selectedCrop !== 'all' && state === 'Haryana') {
       const loadNavigator = async () => {
-        setIsNavigatorLoading(true);
         try {
           const resp = await apiFetch(`/api/mandi/navigator?district=Karnal&crop=${encodeURIComponent(selectedCrop)}`);
           const json = await resp.json();
           if (json.success) setBestDeals(json.data);
-        } catch (e) {} finally {
-          setIsNavigatorLoading(false);
-        }
+        } catch (e) {}
       };
       loadNavigator();
     } else {
@@ -380,7 +377,7 @@ const MandiPrices: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 };
 

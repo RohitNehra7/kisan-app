@@ -7,16 +7,16 @@ export interface FeatureFlags {
 
 const devFlags: FeatureFlags = {
   enableLiveMandiPulse: false,
-  enableAdvisoryEngine: false,
+  enableAdvisoryEngine: true,
   enableWeatherDashboard: true,
-  enableFarmerForum: true,
+  enableFarmerForum: false,
 };
 
 const prodFlags: FeatureFlags = {
   enableLiveMandiPulse: false,
-  enableAdvisoryEngine: false,
+  enableAdvisoryEngine: true,
   enableWeatherDashboard: true,
-  enableFarmerForum: true,
+  enableFarmerForum: false,
 };
 
 export const FEATURES = process.env.NODE_ENV === 'production' ? prodFlags : devFlags;

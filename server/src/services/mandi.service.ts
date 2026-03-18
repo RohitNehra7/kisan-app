@@ -267,8 +267,9 @@ export class MandiService {
         ...allDiscoveredStates.filter(s => !priorityStates.includes(s))
       ];
       
+      // 3. DEEP HISTORY WINDOW: Scan last 15 days for primary states to ensure trends work
       const datesToSync: string[] = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 15; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const ds = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -276,8 +277,11 @@ export class MandiService {
       }
 
       for (const state of sortedStates) {
+        // For non-priority states, only fetch last 3 days to save API quota
+        const activeWindow = priorityStates.includes(state) ? datesToSync : datesToSync.slice(0, 3);
+        
         let stateFreshestDate = "None";
-        for (const dateStr of datesToSync) {
+        for (const dateStr of activeWindow) {
           console.log(`📡 [Warehouse] Fetching ${state} | ${dateStr}...`);
           
           try {
