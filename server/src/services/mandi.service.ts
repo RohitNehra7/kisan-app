@@ -222,8 +222,20 @@ export class MandiService {
       }));
 
       if (cleanedData.length > 0 && supabase) {
+        // 1. Transactional Update
         supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' })
           .then(({ error }) => { if (error) console.warn('Supabase sync error', error.message); });
+
+        // 2. Warehouse Archive (Self-Healing Path)
+        const historyData = cleanedData.map(item => {
+          const [day, month, year] = item.arrival_date.split('/');
+          return {
+            ...item,
+            arrival_date: `${year}-${month}-${day}`
+          };
+        });
+        supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' })
+          .then(({ error }) => { if (error) console.warn('History archive error', error.message); });
       }
 
       return cleanedData;
