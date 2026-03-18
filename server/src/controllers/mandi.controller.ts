@@ -19,18 +19,18 @@ export class MandiController {
         }
       }
 
-      // 2. HYPER-FRESH FALLBACK: If specific mandi selected, try direct portal fetch
+      // 2. HYPER-FRESH FALLBACK: If specific mandi selected, try direct aggregator fetch
       // This bypasses the 12-hour OGD API lag
       if (market && market !== 'all' && commodity && commodity !== 'all') {
-        const directRecord = await LiveMandiService.fetchDirectFromPortal(
+        const directRecords = await LiveMandiService.fetchDirectFromPortal(
           state as string,
-          '', // District auto-detected by portal
+          '', // District auto-detected
           market as string,
           commodity as string
         );
         
-        if (directRecord) {
-          return res.json({ success: true, count: 1, data: [directRecord], source: 'DirectPortal' });
+        if (directRecords && directRecords.length > 0) {
+          return res.json({ success: true, count: directRecords.length, data: directRecords, source: 'Aggregator' });
         }
       }
 
