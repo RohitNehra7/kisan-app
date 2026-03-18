@@ -4,7 +4,7 @@ import { WeatherService } from './weather.service';
 import { SellHoldResponse, MandiRecord } from '../types';
 import { MSP_2025, HARYANA_MANDIS } from '../config/haryana.constants';
 import { supabase } from '../config/supabase';
-import { ruleBasedDecision, RuleInputs, RuleOutput } from './advisory-rules.service';
+import { ruleBasedDecision, DecisionInputs, DecisionOutput } from './advisory-rules.service';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -50,25 +50,25 @@ export class AdvisoryService {
         : "मौसम डेटा उपलब्ध नहीं है।";
 
       // 4. Run Rule-Based Engine first (deterministic)
-      const ruleInputs: RuleInputs = {
+      const ruleInputs: DecisionInputs = {
         arrivalSignal: mandiSummary.arrivalSignal,
+        dataAgeDays: mandiSummary.dataAgeDays,
         priceTrend7d: mandiSummary.trend7d,
         rainDaysNext14,
         urgency,
         priceAboveMSPPct: ((mandiSummary.modalPriceAvg - msp) / msp) * 100,
         storageCostPerDay,
         quantity,
-        cropType: crop,
-        currentPrice: mandiSummary.modalPriceAvg
+        cropType: crop
       };
 
-      const ruleResult = ruleBasedDecision(ruleInputs);
+      const ruleResult = ruleBasedDecision(ruleInputs, mandiSummary.modalPriceAvg);
 
       // 5. Hybrid Logic: Use rules for clear signals, AI for mixed ones
       let aiResponse: any;
       if (Math.abs(ruleResult.net_score) >= 3) {
         console.log(`[Advisory] Clear signal (net=${ruleResult.net_score}). Using rule engine.`);
-        aiResponse = ruleResult;
+        aiResponse = { ...ruleResult, used_rules: true };
       } else {
         console.log(`[Advisory] Mixed signal (net=${ruleResult.net_score}). Calling Gemini.`);
         try {
@@ -79,10 +79,11 @@ export class AdvisoryService {
             weatherSummary,
             ruleResult
           });
-          aiResponse = await this.callGemini(prompt);
+          const geminiResult = await this.callGemini(prompt);
+          aiResponse = { ...geminiResult, used_rules: false };
         } catch (err) {
           console.warn('[Advisory] Gemini failed. Falling back to rules.');
-          aiResponse = ruleResult;
+          aiResponse = { ...ruleResult, used_rules: true };
         }
       }
 

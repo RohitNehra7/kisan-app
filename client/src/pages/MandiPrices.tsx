@@ -18,7 +18,6 @@ import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
 import SEO from '../components/common/KisanSeo';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
-import { FEATURES } from '../config/features';
 
 const pageVariants = {
   initial: { opacity: 0 },

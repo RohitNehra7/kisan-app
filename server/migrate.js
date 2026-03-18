@@ -37,6 +37,7 @@ async function migrate() {
       modal_price NUMERIC(10,2),
       min_price NUMERIC(10,2),
       max_price NUMERIC(10,2),
+      arrivals_in_qtl NUMERIC(12,2) DEFAULT 0,
       arrival_date DATE NOT NULL,
       state TEXT,
       UNIQUE(market, commodity, variety, arrival_date)
@@ -57,7 +58,7 @@ async function migrate() {
     );
   `);
 
-  // 4. Farmer Profiles (Expanded for Phase 2)
+  // 4. Farmer Profiles
   await client.query(`
     CREATE TABLE IF NOT EXISTS farmer_profiles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,20 +76,6 @@ async function migrate() {
       push_token TEXT,
       session_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  // 10. Notification Registry (Phase 2)
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS notification_tokens (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      fcm_token TEXT NOT NULL,
-      session_id TEXT NOT NULL,
-      district TEXT,
-      crop TEXT,
-      is_arhtiya BOOLEAN DEFAULT false,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(session_id)
     );
   `);
 
@@ -110,7 +97,9 @@ async function migrate() {
       data_age_days INTEGER DEFAULT 0,
       mandi_data JSONB,
       weather_data JSONB,
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      engine_used TEXT,
+      net_score INTEGER
     );
   `);
 
@@ -135,6 +124,7 @@ async function migrate() {
       event_type TEXT NOT NULL,
       district TEXT,
       crop TEXT,
+      disease TEXT,
       session_id TEXT,
       platform TEXT DEFAULT 'web',
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -143,7 +133,6 @@ async function migrate() {
 
   // 8. Scheme Rules Engine
   await client.query(`
-    DROP TABLE IF EXISTS scheme_rules;
     CREATE TABLE IF NOT EXISTS scheme_rules (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       scheme_name TEXT NOT NULL,
@@ -170,6 +159,21 @@ async function migrate() {
       records_synced INTEGER DEFAULT 0,
       error_message TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // 10. Notification Registry
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS notification_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      fcm_token TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      district TEXT,
+      crop TEXT,
+      is_arhtiya BOOLEAN DEFAULT false,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(session_id)
     );
   `);
 
@@ -226,7 +230,7 @@ async function migrate() {
 
   // Backfill price_history from prices
   await client.query(`
-    INSERT INTO price_history (market, commodity, variety, modal_price, min_price, max_price, arrival_date, state)
+    INSERT INTO price_history (market, commodity, variety, modal_price, min_price, max_price, arrivals_in_qtl, arrival_date, state)
     SELECT
       market,
       commodity,
@@ -234,6 +238,7 @@ async function migrate() {
       modal_price,
       min_price,
       max_price,
+      arrivals_in_qtl,
       TO_DATE(arrival_date, 'DD/MM/YYYY') AS arrival_date,
       state
     FROM prices

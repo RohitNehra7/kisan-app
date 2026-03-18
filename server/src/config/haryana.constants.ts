@@ -12,7 +12,7 @@ export const HARYANA_DISTRICTS = [
   'Gurugram', 'Hisar', 'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 
   'Kurukshetra', 'Mahendragarh', 'Nuh', 'Palwal', 'Panchkula', 
   'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar'
-];
+].sort();
 
 export const MSP_2025: Record<string, number> = {
   'Wheat': 2425,
@@ -29,18 +29,22 @@ export const MSP_2025: Record<string, number> = {
 export const TIER1_DISTRICTS = ['Karnal', 'Kaithal', 'Ambala', 'Hisar', 'Kurukshetra', 'Sirsa', 'Fatehabad'];
 
 export const HARYANA_MANDIS: Record<string, string[]> = {
-  'Karnal':       ['Karnal', 'Nilokheri', 'Assandh'],
-  'Kaithal':      ['Kaithal', 'Pundri', 'Kalayat'],
-  'Hisar':        ['Hisar', 'Hansi', 'Fatehabad'],
-  'Ambala':       ['Ambala', 'Shahabad', 'Naraingarh'],
-  'Kurukshetra':  ['Kurukshetra', 'Shahabad', 'Thanesar'],
-  'Sirsa':        ['Sirsa', 'Ellenabad', 'Dabwali'],
-  'Rohtak':       ['Rohtak', 'Jhajjar', 'Bahadurgarh'],
-  'Bhiwani':      ['Bhiwani', 'Charkhi Dadri', 'Loharu'],
-  'Jind':         ['Jind', 'Narwana', 'Safidon'],
-  'Panipat':      ['Panipat', 'Samalkha', 'Israna'],
-  'Sonipat':      ['Sonipat', 'Gohana', 'Kharkhoda'],
-  'Fatehabad':    ['Fatehabad', 'Tohana', 'Ratia'],
-  'Yamunanagar':  ['Yamunanagar', 'Jagadhri', 'Radaur'],
-  'Rewari':       ['Rewari', 'Narnaul', 'Mahendragarh'],
+  'Karnal':       ['Karnal', 'Nilokheri', 'Assandh', 'Indri', 'Gharaunda'],
+  'Kaithal':      ['Kaithal', 'Pundri', 'Kalayat', 'Cheeka', 'Guhla'],
+  'Hisar':        ['Hisar', 'Hansi', 'Barwala', 'Uklana'],
+  'Ambala':       ['Ambala City', 'Ambala Cantt.', 'Shahabad', 'Naraingarh'],
+  'Kurukshetra':  ['Kurukshetra', 'Shahabad', 'Thanesar', 'Babain', 'Pehowa', 'Ladwa', 'Pipli'],
+  'Sirsa':        ['Sirsa', 'Ellenabad', 'Dabwali', 'Kalanwali', 'Rania'],
+  'Rohtak':       ['Rohtak', 'Meham', 'Sampla'],
+  'Bhiwani':      ['Bhiwani', 'Charkhi Dadri', 'Loharu', 'Siwani', 'Tosham'],
+  'Jind':         ['Jind', 'Narwana', 'Safidon', 'Uchana'],
+  'Panipat':      ['Panipat', 'Samalkha', 'Israna', 'Madlauda'],
+  'Sonipat':      ['Sonipat', 'Gohana', 'Kharkhoda', 'Ganaur'],
+  'Fatehabad':    ['Fatehabad', 'Tohana', 'Ratia', 'Bhattukalan'],
+  'Yamunanagar':  ['Yamunanagar', 'Jagadhri', 'Radaur', 'Chhachhrauli'],
+  'Rewari':       ['Rewari', 'Bawal', 'Kosli'],
+  'Mahendragarh': ['Narnaul', 'Mahendragarh', 'Kanina', 'Ateli'],
+  'Gurugram':     ['Gurgaon', 'Pataudi', 'Farrukhnagar'],
+  'Faridabad':    ['Faridabad', 'Ballabgarh'],
+  'Panchkula':    ['Panchkula', 'Barwala', 'Raipur Rani']
 };

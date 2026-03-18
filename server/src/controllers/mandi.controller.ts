@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { MandiService } from '../services/mandi.service';
 import { EnamService } from '../services/enam.service';
+import { LiveMandiService } from '../services/live-mandi.service';
 import { supabase } from '../config/supabase';
 import { MandiRecord, ArbitrageResult } from '../types';
 
@@ -10,15 +11,32 @@ export class MandiController {
       const { state, commodity, market } = req.query;
       if (!state) return res.status(400).json({ error: 'State is required' });
 
-      // 1. Check for Live eNAM Auction first (Phase 2 Upgrade)
+      // 1. Check for Live eNAM Auction (Phase 2 Premium)
       if (market && market !== 'all' && commodity && commodity !== 'all') {
         const liveDeal = await EnamService.fetchLiveAuction(market as string, commodity as string);
         if (liveDeal) {
-          return res.json({ success: true, count: 1, data: [liveDeal], is_live: true });
+          return res.json({ success: true, count: 1, data: [liveDeal], source: 'eNAM' });
         }
       }
 
-      // 2. Fallback to Data Warehouse
+      // 2. HYPER-FRESH FALLBACK: If specific mandi selected, try direct portal fetch
+      // This bypasses the 12-hour OGD API lag
+      if (market && market !== 'all' && commodity && commodity !== 'all') {
+        const directRecord = await LiveMandiService.fetchDirectFromPortal(
+          state as string,
+          '', // District auto-detected by portal
+          market as string,
+          commodity as string
+        );
+        
+        if (directRecord) {
+          return res.json({ success: true, count: 1, data: [directRecord], source: 'DirectPortal' });
+        }
+      }
+
+      // 3. Warehouse Recovery (Standard)
+      MandiService.checkSyncHealthAndRecover();
+
       let data = await MandiService.getPricesFromDB(
         state as string, 
         commodity as string, 
