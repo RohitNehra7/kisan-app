@@ -17,7 +17,18 @@ const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 // Create a dummy client if keys are missing to prevent runtime crash
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
-  : ({ auth: { getUser: () => ({ data: { user: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }) } } as any);
+  : ({ 
+      auth: { 
+        getUser: () => ({ data: { user: null } }), 
+        signInWithOAuth: () => { console.error('Supabase keys missing - OAuth disabled'); return { error: new Error('Missing Keys') }; },
+        signOut: () => ({ error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }) 
+      } 
+    } as any);
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('⚠️ [KisanNiti] Supabase credentials missing. Social Login is currently disabled.');
+}
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
