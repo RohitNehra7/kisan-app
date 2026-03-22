@@ -418,30 +418,41 @@ export class MandiService {
 
   /**
    * Get 3-year seasonal averages (Monthly)
+   * Tiered Logic: District Avg -> State Avg Fallback
    */
   static async getSeasonalTrends(district: string, commodity: string): Promise<any[]> {
     try {
       if (!supabase) return [];
 
-      // Query last 3 years of history for this district/crop
       const threeYearsAgo = new Date();
       threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
       const isoDate = threeYearsAgo.toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      // 1. Attempt District Fetch
+      let { data, error } = await supabase
         .from('price_history')
-        .select('modal_price, arrival_date')
+        .select('modal_price, arrival_date, state')
         .eq('district', district)
         .eq('commodity', commodity)
         .gte('arrival_date', isoDate);
 
-      if (error || !data || data.length === 0) return [];
+      // 2. State Fallback: If district is thin, get the whole state's history for this crop
+      if (error || !data || data.length < 5) {
+        console.log(`💡 [Warehouse] District ${district} thin. Falling back to State averages.`);
+        const { data: stateData } = await supabase
+          .from('price_history')
+          .select('modal_price, arrival_date')
+          .eq('state', 'Haryana') // Currently prioritized state
+          .eq('commodity', commodity)
+          .gte('arrival_date', isoDate);
+        data = stateData;
+      }
 
-      // Group by month and calculate average
+      if (!data || data.length === 0) return [];
+
       const monthGroups: Record<number, { sum: number, count: number }> = {};
-      
       data.forEach(row => {
-        const month = new Date(row.arrival_date).getMonth() + 1; // 1-12
+        const month = new Date(row.arrival_date).getMonth() + 1;
         if (!monthGroups[month]) monthGroups[month] = { sum: 0, count: 0 };
         monthGroups[month].sum += parseFloat(row.modal_price as any);
         monthGroups[month].count += 1;
