@@ -355,9 +355,19 @@ const MandiPrices: React.FC = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={historyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="arrival_date" hide />
+                        <XAxis 
+                          dataKey="arrival_date" 
+                          tick={{fontSize: 8, fontWeight: 900}}
+                          tickFormatter={(val) => {
+                            const d = new Date(val);
+                            return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                          }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
                         <YAxis hide domain={['auto', 'auto']} />
                         <Tooltip 
+                          labelFormatter={(val) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
                           contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 900}} 
                           itemStyle={{color: '#1B5E20'}}
                         />
