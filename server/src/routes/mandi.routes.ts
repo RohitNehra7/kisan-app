@@ -12,5 +12,6 @@ router.get('/msp', MandiController.getMSP);
 router.get('/arbitrage', MandiController.getArbitrage);
 router.get('/navigator', MandiController.getNavigatorDeals);
 router.get('/seasonal', MandiController.getSeasonal);
+router.post('/sell-interest', MandiController.registerSellInterest);
 
 export default router;

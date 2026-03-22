@@ -179,6 +179,20 @@ async function migrate() {
     );
   `);
 
+  // 12. Sell Interest (Arhtiya Pro Leads)
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS sell_interests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      auth_id UUID REFERENCES farmer_profiles(auth_id),
+      mandi TEXT NOT NULL,
+      crop TEXT NOT NULL,
+      quantity INTEGER,
+      expected_price NUMERIC(10,2),
+      status TEXT DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Seed some Tier 1 Warehouses
   await client.query(`
     INSERT INTO storage_locations (name, district, capacity_mt, cost_per_qtl_month, commodities_accepted) VALUES

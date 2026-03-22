@@ -20,11 +20,10 @@ export class MandiController {
       }
 
       // 2. HYPER-FRESH FALLBACK: If specific mandi selected, try direct aggregator fetch
-      // This bypasses the 12-hour OGD API lag
       if (market && market !== 'all' && commodity && commodity !== 'all') {
         const directRecords = await LiveMandiService.fetchDirectFromPortal(
           state as string,
-          '', // District auto-detected
+          '', 
           market as string,
           commodity as string
         );
@@ -43,9 +42,8 @@ export class MandiController {
         market as string
       );
 
-      // Self-Healing Fallback: If DB is empty/unreachable, fetch live
+      // Self-Healing Fallback
       if (!data || data.length === 0) {
-        console.warn(`⚠️ [Self-Healing] DB empty for ${state}. Fetching live...`);
         data = await MandiService.fetchAndSyncPrices(
           state as string, 
           commodity as string, 
@@ -55,6 +53,30 @@ export class MandiController {
       }
 
       res.json({ success: true, count: data.length, data });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  static async registerSellInterest(req: Request, res: Response) {
+    try {
+      if (!supabase) throw new Error('DB not initialized');
+      const { auth_id, mandi, crop, quantity } = req.body;
+
+      const { data, error } = await supabase
+        .from('sell_interests')
+        .insert({
+          auth_id,
+          mandi,
+          crop,
+          quantity,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json({ success: true, data });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
     }
@@ -162,4 +184,4 @@ export class MandiController {
       res.status(500).json({ success: false, error: e.message });
     }
   }
-  }
+}

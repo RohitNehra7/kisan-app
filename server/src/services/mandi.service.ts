@@ -448,7 +448,7 @@ export class MandiService {
         console.log(`💡 [Warehouse] District ${district} thin. Falling back to State averages.`);
         const { data: stateData } = await supabase
           .from('price_history')
-          .select('modal_price, arrival_date')
+          .select('modal_price, arrival_date, state')
           .eq('state', 'Haryana') // Currently prioritized state
           .eq('commodity', commodity)
           .gte('arrival_date', isoDate);
