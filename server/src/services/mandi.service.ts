@@ -403,13 +403,8 @@ export class MandiService {
         data = newData;
       }
       
-      return (data || []).map(row => {
-        const d = new Date(row.arrival_date);
-        return {
-          ...row,
-          arrival_date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-        };
-      });
+      // Return raw data (dates are already ISO YYYY-MM-DD in DB)
+      return data || [];
     } catch (err) { 
       console.error('History API Failure:', err);
       return []; 

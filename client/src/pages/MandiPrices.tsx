@@ -369,7 +369,12 @@ const MandiPrices: React.FC = () => {
                           dataKey="arrival_date" 
                           tick={{fontSize: 8, fontWeight: 900}}
                           tickFormatter={(val) => {
-                            const d = new Date(val);
+                            if (!val) return "";
+                            // Handle both ISO (YYYY-MM-DD) and legacy (DD/MM/YYYY)
+                            const dateParts = val.includes('-') ? val.split('-') : val.split('/');
+                            const d = val.includes('-') 
+                              ? new Date(dateParts[0], dateParts[1]-1, dateParts[2])
+                              : new Date(dateParts[2], dateParts[1]-1, dateParts[0]);
                             return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
                           }}
                           axisLine={false}
@@ -377,7 +382,14 @@ const MandiPrices: React.FC = () => {
                         />
                         <YAxis hide domain={['auto', 'auto']} />
                         <Tooltip 
-                          labelFormatter={(val) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          labelFormatter={(val) => {
+                            if (!val) return "";
+                            const dateParts = val.includes('-') ? val.split('-') : val.split('/');
+                            const d = val.includes('-') 
+                              ? new Date(dateParts[0], dateParts[1]-1, dateParts[2])
+                              : new Date(dateParts[2], dateParts[1]-1, dateParts[0]);
+                            return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+                          }}
                           contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 900}} 
                           itemStyle={{color: '#1B5E20'}}
                         />
