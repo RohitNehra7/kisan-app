@@ -172,7 +172,6 @@ export class MandiService {
           console.log(`📡 [Warehouse] Deep Fetch: ${state} | ${dateStr}`);
           
           try {
-            // EXHAUSTIVE PAGINATION: OGD API might have > 1000 records for UP/Punjab on busy days
             let offset = 0;
             let hasMore = true;
 
@@ -197,7 +196,7 @@ export class MandiService {
                 state: r.state || "N/A",
                 district: r.district || "N/A",
                 market: r.market.replace(/ APMC$/i, '').trim(),
-                commodity: r.commodity === 'Rapeseed and Mustard' ? 'Mustard' : r.commodity, // Smart Map
+                commodity: r.commodity === 'Rapeseed and Mustard' ? 'Mustard' : r.commodity, 
                 variety: r.variety || "N/A",
                 arrival_date: r.arrival_date || "N/A",
                 min_price: parseFloat(r.min_price) || 0,
@@ -210,15 +209,13 @@ export class MandiService {
                 cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
               ).values());
 
-              // Dual-Write
-              await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'market,commodity,variety,arrival_date' });
+              // 1. Update current prices (Overwrite with latest)
+              await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'state,market,commodity,variety' });
+              
+              // 2. Archive to price_history (Log everything)
               const historyData = uniqueBatch.map(item => {
                 const [d, m, y] = item.arrival_date.split('/');
-                return { 
-                  ...item, 
-                  arrival_date: `${y}-${m}-${d}`,
-                  district: item.district // Already cleaned in cleanedData
-                };
+                return { ...item, arrival_date: `${y}-${m}-${d}` };
               });
               await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
 
@@ -226,7 +223,7 @@ export class MandiService {
               if (rawRecords.length < 1000) hasMore = false;
               else offset += 1000;
 
-              await new Promise(res => setTimeout(res, 1500)); // Respect OGD rate limit
+              await new Promise(res => setTimeout(res, 1500)); 
             }
           } catch (apiErr: any) {
             console.error(`❌ [Warehouse] API Error for ${state}:`, apiErr.message);
@@ -291,14 +288,13 @@ export class MandiService {
       }));
 
       if (cleanedData.length > 0 && supabase) {
-        await supabase.from('prices').upsert(cleanedData, { onConflict: 'market,commodity,variety,arrival_date' });
+        // 1. Latest Cache
+        await supabase.from('prices').upsert(cleanedData, { onConflict: 'state,market,commodity,variety' });
+        
+        // 2. Full Warehouse
         const historyData = cleanedData.map(item => {
           const [d, m, y] = item.arrival_date.split('/');
-          return { 
-            ...item, 
-            arrival_date: `${y}-${m}-${d}`,
-            district: item.district
-          };
+          return { ...item, arrival_date: `${y}-${m}-${d}` };
         });
         await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
       }
@@ -335,25 +331,14 @@ export class MandiService {
 
   /**
    * Get all supported states from Directory
-   * Strictly returns only states that have entries in our Mandi Directory.
    */
   static async getStates(): Promise<string[]> {
     try {
-      if (!supabase) return [];
-      
-      const { data, error } = await supabase
-        .from('mandi_directory')
-        .select('state');
-        
-      if (error) throw error;
-      
-      if (!data || data.length === 0) return [];
-      
+      if (!supabase) return ["Haryana", "Punjab"];
+      const { data, error } = await supabase.from('mandi_directory').select('state');
+      if (error || !data || data.length === 0) return ["Haryana", "Punjab"];
       return Array.from(new Set(data.map(d => d.state))).sort();
-    } catch (e) {
-      console.error('⚠️ [MandiService] Failed to fetch states:', e);
-      return [];
-    }
+    } catch (e) { return ["Haryana", "Punjab"]; }
   }
 
   static async getMarkets(state: string): Promise<string[]> {
