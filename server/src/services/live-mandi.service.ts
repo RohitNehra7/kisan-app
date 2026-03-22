@@ -81,18 +81,23 @@ export class LiveMandiService {
       if (records && records.length > 0) {
         console.log(`   ✅ Success! Found ${records.length} records. Archiving to Warehouse...`);
         
-        // DUAL-WRITE
+        // DUAL-WRITE with Deduplication
         if (supabase) {
-          await supabase.from('prices').upsert(records, { onConflict: 'market,commodity,variety,arrival_date' });
+          const uniqueCurrent = this.deduplicate(records, false);
+          const { error: pErr } = await supabase.from('prices').upsert(uniqueCurrent, { onConflict: 'state,market,commodity,variety' });
+          if (pErr) console.error('❌ [Aggregator] Prices Upsert Error:', pErr.message);
           
-          const historyData = records.map(item => {
+          const historyRaw = records.map(item => {
             const parts = item.arrival_date.split('/');
             const isoDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : null;
             return { ...item, arrival_date: isoDate };
           }).filter(item => item.arrival_date !== null);
+
+          const uniqueHistory = this.deduplicate(historyRaw as any, true);
           
-          if (historyData.length > 0) {
-             await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
+          if (uniqueHistory.length > 0) {
+             const { error: hErr } = await supabase.from('price_history').upsert(uniqueHistory, { onConflict: 'market,commodity,variety,arrival_date' });
+             if (hErr) console.error('❌ [Aggregator] History Upsert Error:', hErr.message);
           }
         }
       } else {
@@ -106,5 +111,21 @@ export class LiveMandiService {
     } finally {
       if (browser) await browser.close();
     }
+  }
+
+  /**
+   * DEDUPLICATE records to prevent Postgres upsert conflicts
+   */
+  private static deduplicate(records: MandiRecord[], isHistory: boolean): MandiRecord[] {
+    const map = new Map();
+    records.forEach(r => {
+      const key = isHistory 
+        ? `${r.market}-${r.commodity}-${r.variety}-${r.arrival_date}`
+        : `${r.state}-${r.market}-${r.commodity}-${r.variety}`;
+      
+      // If duplicate found, keep the first one (most recent in the scraper order)
+      if (!map.has(key)) map.set(key, r);
+    });
+    return Array.from(map.values());
   }
 }

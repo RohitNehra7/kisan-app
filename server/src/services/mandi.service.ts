@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { supabase } from '../config/supabase';
 import { GeoService } from './geo.service';
+import { LiveMandiService } from './live-mandi.service';
 import { PROJECT_CONFIG } from '../config/project.config';
 import { ArbitrageResult, MandiRecord } from '../types';
 
@@ -215,7 +216,11 @@ export class MandiService {
               // 2. Archive to price_history (Log everything)
               const historyData = uniqueBatch.map(item => {
                 const [d, m, y] = item.arrival_date.split('/');
-                return { ...item, arrival_date: `${y}-${m}-${d}` };
+                return { 
+                  ...item, 
+                  arrival_date: `${y}-${m}-${d}`,
+                  district: item.district
+                };
               });
               await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
 
@@ -294,7 +299,11 @@ export class MandiService {
         // 2. Full Warehouse
         const historyData = cleanedData.map(item => {
           const [d, m, y] = item.arrival_date.split('/');
-          return { ...item, arrival_date: `${y}-${m}-${d}` };
+          return { 
+            ...item, 
+            arrival_date: `${y}-${m}-${d}`,
+            district: item.district
+          };
         });
         await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
       }
@@ -362,11 +371,49 @@ export class MandiService {
   static async getHistory(market: string, commodity: string): Promise<any[]> {
     try {
       if (!supabase) return [];
-      const { data, error } = await supabase.from('price_history').select('arrival_date, modal_price, arrivals_in_qtl')
-        .eq('market', market).eq('commodity', commodity).order('arrival_date', { ascending: true }).limit(30);
+      
+      const cleanMarket = market.trim();
+      const cleanComm = commodity.trim();
+
+      console.log(`📈 [Warehouse] Fetching history for ${cleanMarket} | ${cleanComm}`);
+
+      let { data, error } = await supabase
+        .from('price_history')
+        .select('arrival_date, modal_price, arrivals_in_qtl')
+        .ilike('market', cleanMarket)
+        .ilike('commodity', cleanComm)
+        .order('arrival_date', { ascending: true })
+        .limit(30);
+
       if (error) throw error;
-      return data || [];
-    } catch (err) { return []; }
+
+      // SMART BACKFILL: If DB is empty or has only 1 point, trigger the Aggregator Scraper
+      if (!data || data.length < 2) {
+        console.log(`🔄 [Warehouse] History thin (<2 pts). Triggering Live Scraper for ${cleanMarket}...`);
+        await LiveMandiService.fetchDirectFromPortal('Haryana', '', cleanMarket, cleanComm);
+        
+        // Re-query once after scraping
+        const { data: newData } = await supabase
+          .from('price_history')
+          .select('arrival_date, modal_price, arrivals_in_qtl')
+          .ilike('market', cleanMarket)
+          .ilike('commodity', cleanComm)
+          .order('arrival_date', { ascending: true })
+          .limit(30);
+        data = newData;
+      }
+      
+      return (data || []).map(row => {
+        const d = new Date(row.arrival_date);
+        return {
+          ...row,
+          arrival_date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+        };
+      });
+    } catch (err) { 
+      console.error('History API Failure:', err);
+      return []; 
+    }
   }
 
   static async getAvg7dArrivals(district: string, crop: string): Promise<number> {
