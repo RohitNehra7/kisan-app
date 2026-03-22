@@ -297,9 +297,13 @@ const MandiPrices: React.FC = () => {
                 </motion.div>
               ))}
             </div>
-            <p className="text-center mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              {isHindi ? `सबसे अच्छा: ${bestDeals[0].market} — ₹${bestDeals[0].net_price - bestDeals[1].net_price} ज़्यादा मिलेगा ट्रांसपोर्ट के बाद` : `Best: ${bestDeals[0].market} — You get ₹${bestDeals[0].net_price - bestDeals[1].net_price} more after transport`}
-            </p>
+            {bestDeals.length > 1 && (
+              <p className="text-center mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {isHindi 
+                  ? `सबसे अच्छा: ${bestDeals[0].market} — ₹${(bestDeals[0]?.net_price || 0) - (bestDeals[1]?.net_price || 0)} ज़्यादा मिलेगा ट्रांसपोर्ट के बाद` 
+                  : `Best: ${bestDeals[0].market} — You get ₹${(bestDeals[0]?.net_price || 0) - (bestDeals[1]?.net_price || 0)} more after transport`}
+              </p>
+            )}
           </div>
         )}
 
