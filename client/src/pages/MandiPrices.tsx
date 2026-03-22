@@ -15,6 +15,7 @@ import PriceCard from '../components/mandi/PriceCard';
 import PriceCardSkeleton from '../components/mandi/PriceCardSkeleton';
 import VoiceSearch from '../components/common/VoiceSearch';
 import DataFreshnessBanner from '../components/mandi/DataFreshnessBanner';
+import SeasonalPatternCard from '../components/mandi/SeasonalPatternCard';
 import SEO from '../components/common/KisanSeo';
 import { HARYANA_PRIMARY_CROPS, PUNJAB_PRIMARY_CROPS } from '../constants/haryana.constants';
 import type { UnitType } from '../types/mandi.types';
@@ -300,6 +301,11 @@ const MandiPrices: React.FC = () => {
               {isHindi ? `सबसे अच्छा: ${bestDeals[0].market} — ₹${bestDeals[0].net_price - bestDeals[1].net_price} ज़्यादा मिलेगा ट्रांसपोर्ट के बाद` : `Best: ${bestDeals[0].market} — You get ₹${bestDeals[0].net_price - bestDeals[1].net_price} more after transport`}
             </p>
           </div>
+        )}
+
+        {/* Seasonal Trends Section (Phase 2 Upgrade) */}
+        {selectedCrop !== 'all' && (
+          <SeasonalPatternCard district={state === 'Haryana' ? 'Karnal' : ''} commodity={selectedCrop} />
         )}
 
         <div className="min-h-[60vh]">

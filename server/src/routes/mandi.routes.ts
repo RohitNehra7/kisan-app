@@ -11,5 +11,6 @@ router.get('/metadata/commodities', MandiController.getCommodities);
 router.get('/msp', MandiController.getMSP);
 router.get('/arbitrage', MandiController.getArbitrage);
 router.get('/navigator', MandiController.getNavigatorDeals);
+router.get('/seasonal', MandiController.getSeasonal);
 
 export default router;

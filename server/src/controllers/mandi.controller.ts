@@ -150,5 +150,16 @@ export class MandiController {
       res.status(500).json({ success: false, error: e.message });
     }
   }
-  }
 
+  static async getSeasonal(req: Request, res: Response) {
+    try {
+      const { district, commodity } = req.query;
+      if (!district || !commodity) return res.status(400).json({ error: 'District and Commodity are required' });
+
+      const data = await MandiService.getSeasonalTrends(district as string, commodity as string);
+      res.json({ success: true, data });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+  }

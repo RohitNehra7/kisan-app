@@ -416,6 +416,48 @@ export class MandiService {
     }
   }
 
+  /**
+   * Get 3-year seasonal averages (Monthly)
+   */
+  static async getSeasonalTrends(district: string, commodity: string): Promise<any[]> {
+    try {
+      if (!supabase) return [];
+
+      // Query last 3 years of history for this district/crop
+      const threeYearsAgo = new Date();
+      threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+      const isoDate = threeYearsAgo.toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from('price_history')
+        .select('modal_price, arrival_date')
+        .eq('district', district)
+        .eq('commodity', commodity)
+        .gte('arrival_date', isoDate);
+
+      if (error || !data || data.length === 0) return [];
+
+      // Group by month and calculate average
+      const monthGroups: Record<number, { sum: number, count: number }> = {};
+      
+      data.forEach(row => {
+        const month = new Date(row.arrival_date).getMonth() + 1; // 1-12
+        if (!monthGroups[month]) monthGroups[month] = { sum: 0, count: 0 };
+        monthGroups[month].sum += parseFloat(row.modal_price as any);
+        monthGroups[month].count += 1;
+      });
+
+      return Object.entries(monthGroups).map(([month, stats]) => ({
+        month: parseInt(month),
+        avg_price: Math.round(stats.sum / stats.count)
+      })).sort((a, b) => a.month - b.month);
+
+    } catch (e) {
+      console.error('Seasonal Aggregation Error:', e);
+      return [];
+    }
+  }
+
   static async getAvg7dArrivals(district: string, crop: string): Promise<number> {
     try {
       if (!supabase) return 0;
