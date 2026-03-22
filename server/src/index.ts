@@ -11,6 +11,7 @@ import forumRoutes from './routes/forum.routes';
 import schemeRoutes from './routes/scheme.routes';
 import profileRoutes from './routes/profile.routes';
 import notificationRoutes from './routes/notification.routes';
+import storageRoutes from './routes/storage.routes';
 import { MandiService } from './services/mandi.service';
 import { MspService } from './services/msp.service';
 import { supabase } from './config/supabase';
@@ -53,6 +54,7 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/schemes', schemeRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/storage', storageRoutes);
 
 // 4. Diagnostics & Maintenance
 app.get('/api/diagnostics', async (req: Request, res: Response) => {

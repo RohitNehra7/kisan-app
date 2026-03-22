@@ -7,6 +7,7 @@ import { captureEvent } from '../services/posthog';
 import { apiFetch } from '../services/api';
 import { trackEvent } from '../services/analytics';
 import SEO from '../components/common/KisanSeo';
+import StorageOptions from '../components/advisory/StorageOptions';
 import { HARYANA_PRIMARY_CROPS, TIER1_DISTRICTS } from '../constants/haryana.constants';
 import type { SellHoldRequest } from '../types/api.types';
 
@@ -288,6 +289,11 @@ const BechoYaRuko: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Storage Options (Phase 2 Upgrade) */}
+          {(result.decision === 'HOLD_7_DAYS' || result.decision === 'HOLD_14_DAYS') && (
+            <StorageOptions district={formData.district} commodity={formData.crop} />
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button onClick={shareToWhatsApp} className="bg-[#25D366] text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-green-100 flex items-center justify-center gap-3 uppercase tracking-tight hover:scale-[1.02] active:scale-95 transition-all">

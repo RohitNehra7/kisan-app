@@ -162,19 +162,31 @@ async function migrate() {
     );
   `);
 
-  // 10. Notification Registry
+  // 11. Storage Locations (NWR Pledge Support)
   await client.query(`
-    CREATE TABLE IF NOT EXISTS notification_tokens (
+    CREATE TABLE IF NOT EXISTS storage_locations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      fcm_token TEXT NOT NULL,
-      session_id TEXT NOT NULL,
-      district TEXT,
-      crop TEXT,
-      is_arhtiya BOOLEAN DEFAULT false,
-      updated_at TIMESTAMPTZ DEFAULT NOW(),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(session_id)
+      name TEXT NOT NULL,
+      district TEXT NOT NULL,
+      type TEXT DEFAULT 'government',
+      capacity_mt INTEGER,
+      nwr_eligible BOOLEAN DEFAULT true,
+      cost_per_qtl_month NUMERIC(6,2),
+      commodities_accepted TEXT[],
+      latitude NUMERIC(10,6),
+      longitude NUMERIC(10,6),
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Seed some Tier 1 Warehouses
+  await client.query(`
+    INSERT INTO storage_locations (name, district, capacity_mt, cost_per_qtl_month, commodities_accepted) VALUES
+    ('HAFED Warehouse Karnal', 'Karnal', 5000, 8.00, ARRAY['Wheat', 'Paddy']),
+    ('CWC Ambala', 'Ambala', 8000, 7.50, ARRAY['Wheat', 'Mustard', 'Gram']),
+    ('SWC Hisar', 'Hisar', 12000, 7.00, ARRAY['Mustard', 'Cotton', 'Bajra']),
+    ('HAFED Kaithal', 'Kaithal', 6000, 8.50, ARRAY['Paddy', 'Wheat'])
+    ON CONFLICT DO NOTHING;
   `);
 
   // Seed initial schemes
