@@ -16,6 +16,10 @@
     "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@supabase/*": ["node_modules/@supabase/*"]
+    },
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx"
