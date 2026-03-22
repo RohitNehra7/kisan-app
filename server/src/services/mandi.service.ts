@@ -168,7 +168,8 @@ export class MandiService {
 
       for (const state of sortedStates) {
         const activeWindow = priorityStates.includes(state) ? datesToSync : datesToSync.slice(0, 3);
-        
+        let dataCapturedForToday = false;
+
         for (const dateStr of activeWindow) {
           console.log(`📡 [Warehouse] Deep Fetch: ${state} | ${dateStr}`);
           
@@ -192,6 +193,8 @@ export class MandiService {
 
               const rawRecords = response.data.records || [];
               if (rawRecords.length === 0) { hasMore = false; break; }
+              
+              if (dateStr === datesToSync[0]) dataCapturedForToday = true;
 
               const cleanedData: MandiRecord[] = rawRecords.map((r: any) => ({
                 state: r.state || "N/A",
@@ -210,17 +213,11 @@ export class MandiService {
                 cleanedData.map(item => [`${item.market}-${item.commodity}-${item.variety}-${item.arrival_date}`, item])
               ).values());
 
-              // 1. Update current prices (Overwrite with latest)
               await supabase.from('prices').upsert(uniqueBatch, { onConflict: 'state,market,commodity,variety' });
               
-              // 2. Archive to price_history (Log everything)
               const historyData = uniqueBatch.map(item => {
                 const [d, m, y] = item.arrival_date.split('/');
-                return { 
-                  ...item, 
-                  arrival_date: `${y}-${m}-${d}`,
-                  district: item.district
-                };
+                return { ...item, arrival_date: `${y}-${m}-${d}`, district: item.district };
               });
               await supabase.from('price_history').upsert(historyData, { onConflict: 'market,commodity,variety,arrival_date' });
 
@@ -233,6 +230,21 @@ export class MandiService {
           } catch (apiErr: any) {
             console.error(`❌ [Warehouse] API Error for ${state}:`, apiErr.message);
             if (apiErr.response?.status === 429) await new Promise(res => setTimeout(res, 10000));
+          }
+        }
+
+        // SMART FALLBACK: If official API has NO data for today, hit the Aggregator Scraper
+        if (!dataCapturedForToday && priorityStates.includes(state)) {
+          console.log(`💡 [Warehouse] ${state} OGD empty for today. Triggering Aggregator Ingester...`);
+          // We fetch for the most important crops to save resources
+          const targetCrops = ['Wheat', 'Mustard', 'Paddy'];
+          const markets = PROJECT_CONFIG.ARBITRAGE_TARGET_DISTRICTS;
+          
+          for (const m of markets) {
+            for (const c of targetCrops) {
+              await LiveMandiService.fetchDirectFromPortal(state, '', m, c);
+              await new Promise(res => setTimeout(res, 2000)); // Rate limit protection
+            }
           }
         }
       }
